@@ -47,6 +47,6 @@ def generateObservations(data_x: torch.tensor, num_observations: int, value_func
     if(add_noise is True):
         data_y = addNoise(data_y)
     data_y = data_y
-    obs_y = torch.tensor([torch.index_select(
+    obs_y = torch.stack([torch.index_select(
         data_x, 0, torch.tensor(obs.entries_indices)).mean(axis=0) for obs in meta]).float()
     return [data_y, obs_y, meta]

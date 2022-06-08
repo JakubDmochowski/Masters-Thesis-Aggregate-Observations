@@ -1,11 +1,11 @@
 import torch
 from dataset import Dataset
-from torch import nn
 import numpy as np
 from itertools import chain
 from typing import Callable
 from dataset import Observation
 import torch.nn.functional as F
+from base_model import Model
 
 
 def length_to_range(lengths: list[int]):
@@ -18,27 +18,7 @@ class StandardLosses:
         return F.mse_loss(predictions, expectations)
 
 
-class StandardModel:
-    def __init__(self):
-        self.output_dim = None
-        self.input_dim = None
-        self.model = None
-
-    def getModelFor(self, dataset: Dataset) -> None:
-        Dataset.validate(dataset)
-        self.input_dim = len(dataset.data_x[0])
-        self.output_dim = len(dataset.data_y[0])
-        self.model = nn.Sequential(
-            nn.Linear(self.input_dim, 128),
-            nn.ReLU(inplace=True),
-            nn.Linear(128, 128),
-            nn.ReLU(inplace=True),
-            nn.Linear(128, self.output_dim),
-        )
-
-    def parameters(self):
-        return self.model.parameters()
-
+class StandardModel(Model):
     def train(self, dataset: Dataset, optimizer, loss: Callable, batch_size: int) -> None:
         data_y_batch_indices = np.random.choice(
             len(dataset.observations), size=batch_size)
