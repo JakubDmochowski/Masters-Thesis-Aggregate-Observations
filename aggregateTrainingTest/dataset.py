@@ -7,14 +7,19 @@ class Observation:
         self.entries_indices = entries_indices
         self.value_vec_index = value_vec_index
 
+    def __str__(self):
+        return f"length: {self.length} || entries_indices: {self.entries_indices} || value_vec_index: {self.value_vec_index}"
+
 
 class Dataset:
-    def __init__(self, data_x: torch.Tensor, data_y: torch.Tensor, observations: list[Observation]):
+    def __init__(self, data_x: torch.Tensor, data_y: torch.Tensor, obs_y: torch.Tensor, observations: list[Observation]):
         # data_x has shape (entries, features)
-        # data_y has shape (aggregate_index, values)
+        # data_y has shape (entries, values)
+        # obs_y has shape (aggregate_index, values)
         # observations is a metadata which points aggregate to entries indices
         self.data_x = data_x
         self.data_y = data_y
+        self.obs_y = obs_y
         self.observations = observations
 
     def validate(dataset) -> bool:
@@ -27,6 +32,9 @@ class Dataset:
         if (len(dataset.observations) == 0):
             raise ValueError("Model: No observations in dataset")
         return True
+
+    def __str__(self):
+        return f"data_x(shape): {self.data_x.shape} || data_y(shape): {self.data_y.shape} || obs_y(shape): {self.obs_y.shape} || observations(len): {len(self.observations)}"
 
 
 Dataset.validate = staticmethod(Dataset.validate)

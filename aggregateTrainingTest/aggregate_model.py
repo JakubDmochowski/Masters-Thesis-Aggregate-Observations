@@ -6,11 +6,7 @@ from itertools import chain
 from typing import Callable
 from dataset import Observation
 import torch.nn.functional as F
-
-
-def length_to_range(lengths: list[int]):
-    lengths = [0] + np.cumsum(lengths).tolist()
-    return [range(a, b) for a, b in zip(lengths[:-1], lengths[1:])]
+from aggregate_utils import length_to_range
 
 
 class AggregateLosses:
@@ -18,7 +14,9 @@ class AggregateLosses:
         ranges = length_to_range(lengths)
         predictions = torch.stack(
             [entry_predictions[r].mean(axis=0) for r in ranges])
-        return F.mse_loss(predictions, observations)
+        # print(predictions, observations)
+        # exit(1)
+        return F.mse_loss(predictions, observations) * np.array(lengths).sum()
 
 
 class AggregateModel:
@@ -49,9 +47,11 @@ class AggregateModel:
             dataset.observations).take(data_y_batch_indices)
         data_x_batch_indices = list(
             chain(*[obs.entries_indices for obs in observations_batch]))
+        obs_y_batch_indices = [
+            obs.value_vec_index for obs in observations_batch]
 
         x_batch = dataset.data_x[data_x_batch_indices]
-        y_batch = dataset.data_y[data_y_batch_indices]
+        y_batch = dataset.obs_y[obs_y_batch_indices]
         l_batch = [obs.length for obs in observations_batch]
 
         optimizer.zero_grad()
