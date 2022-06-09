@@ -14,7 +14,7 @@ class AggregateLosses:
         ranges = length_to_range(lengths)
         predictions = torch.stack(
             [entry_predictions[r].mean(axis=0) for r in ranges])
-        return F.mse_loss(predictions, observations) * np.array(lengths).sum()
+        return F.mse_loss(predictions, observations) * (np.array(lengths).sum() / len(lengths))
 
 
 class AggregateModel(Model):
