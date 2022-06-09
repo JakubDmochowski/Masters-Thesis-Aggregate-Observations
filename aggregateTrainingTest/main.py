@@ -9,7 +9,10 @@ from torch import optim
 from tqdm import trange
 from plot_utils import plotXY, plotLosses
 
-np.random.seed(2020)
+RANDOM_SEED = 2022
+
+np.random.seed(RANDOM_SEED)
+torch.manual_seed(RANDOM_SEED)
 
 NUM_ENTRIES = 300
 NUM_DIMENSIONS = 1
@@ -37,7 +40,8 @@ data_y, obs_y, meta = generateObservations(data_x=data_x,
                                            num_observations=NUM_OBSERVATIONS,
                                            add_noise=ADD_NOISE,
                                            value_func=valFunc)
-meta_train, meta_test = train_test_split(meta, test_size=TEST_SPLIT)
+meta_train, meta_test = train_test_split(
+    meta, test_size=TEST_SPLIT, random_state=RANDOM_SEED)
 data_train = Dataset(data_x=data_x, data_y=data_y,
                      obs_y=obs_y, observations=meta_train)
 data_test = Dataset(data_x=data_x, data_y=data_y,
