@@ -3,7 +3,6 @@ from dataset import Dataset
 import numpy as np
 from itertools import chain
 from typing import Callable
-from dataset import Observation
 import torch.nn.functional as F
 from base_model import Model
 

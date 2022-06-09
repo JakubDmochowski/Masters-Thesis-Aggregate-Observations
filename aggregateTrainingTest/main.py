@@ -3,7 +3,6 @@ from aggregate_model import AggregateLosses, AggregateModel
 from standard_model import StandardLosses, StandardModel
 from dataset import Dataset
 from synthetic import generateData, generateObservations, generateValues, getExpectedValues
-from quality_measures import RegressionQualityMeasure
 from sklearn.model_selection import train_test_split
 import torch
 from torch import optim
@@ -29,7 +28,6 @@ def valFunc(x: list[float]) -> np.ndarray:
 
 AGGREGATE_MODEL_TRAIN_LOSS = AggregateLosses().gaussian
 STANDARD_MODEL_TRAIN_LOSS = StandardLosses().mse_loss
-QUALITY_MEASURE = RegressionQualityMeasure.MeanSquaredError
 
 data_x = generateData(entry_no=NUM_ENTRIES,
                       dim_no=NUM_DIMENSIONS)

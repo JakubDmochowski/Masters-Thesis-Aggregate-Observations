@@ -1,11 +1,9 @@
-import random
 import torch
 import numpy as np
 from dataset import Observation
 from typing import Callable
 from itertools import chain
 from dataset import Dataset
-from aggregate_utils import length_to_range
 
 
 def addNoise(data: torch.tensor) -> torch.tensor:
@@ -40,7 +38,7 @@ def generateObservations(data_x: torch.tensor, num_observations: int, value_func
     # returned data_y is a tensor shaped (entries, values)
     entry_no = len(data_x)
     meta = np.linspace(0, entry_no, entry_no, endpoint=False, dtype=int)
-    random.shuffle(meta)
+    np.random.shuffle(meta)
     meta = np.array_split(meta, num_observations)
     meta = [Observation(x, i) for i, x in enumerate(meta)]
     data_y = generateValues(data_x, value_func)
