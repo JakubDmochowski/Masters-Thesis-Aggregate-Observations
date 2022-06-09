@@ -15,6 +15,7 @@ def plotLosses(loss_history: list[list[float]]):
     ax.set_xlabel('iteration')
     ax.set_ylabel('loss')
     ax.legend()
+    plt.yscale("log")
     fig.show()
 
 
