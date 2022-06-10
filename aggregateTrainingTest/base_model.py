@@ -4,10 +4,11 @@ from torch import nn
 
 
 class Model:
-    def __init__(self):
+    def __init__(self, classification: bool = False):
         self.output_dim = None
         self.input_dim = None
         self.model = None
+        self.classification = classification
 
     def parameters(self):
         return self.model.parameters()
@@ -19,10 +20,16 @@ class Model:
         self.model = nn.Sequential(
             nn.Linear(self.input_dim, 128),
             nn.ReLU(inplace=True),
+            nn.BatchNorm1d(128),
+            nn.Dropout(p=0.2),
             nn.Linear(128, 128),
             nn.ReLU(inplace=True),
+            nn.BatchNorm1d(128),
+            nn.Dropout(p=0.2),
             nn.Linear(128, self.output_dim),
         )
+        if self.classification is True:
+            self.model = nn.Sequential(self.model, nn.Softmax())
 
     def test(self, dataset: Dataset):
         data_x_indices = list(

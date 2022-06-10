@@ -2,25 +2,14 @@ import torch
 import numpy as np
 from dataset import Observation
 from typing import Callable
-from itertools import chain
-from dataset import Dataset
+from data.data_utils import generateValues
 
 
 def addNoise(data: torch.tensor) -> torch.tensor:
     return torch.tensor(data.numpy()).float()
 
 
-def getExpectedValues(expected_y: torch.tensor, dataset: Dataset):
-    data_x_indices = list(
-        chain(*[obs.entries_indices for obs in dataset.observations]))
-    return expected_y[data_x_indices]
-
-
-def generateValues(data_x: torch.tensor, value_func: Callable) -> np.ndarray:
-    return torch.tensor(np.array([value_func(x) for x in data_x.numpy()])).float()
-
-
-def generateData(entry_no: int, dim_no: int, options: dict = {}) -> list:
+def generatePoints(entry_no: int, dim_no: int, options: dict) -> torch.tensor:
     # returned data_x is a tensor shaped (entries, features)
     x_min = -10
     x_max = 10
@@ -34,17 +23,23 @@ def generateData(entry_no: int, dim_no: int, options: dict = {}) -> list:
     return data_x
 
 
-def generateObservations(data_x: torch.tensor, num_observations: int, value_func: Callable, add_noise: bool) -> np.ndarray:
+def generateObservations(data_y: torch.tensor, num_observations: int, value_func: Callable, add_noise: bool) -> list[torch.tensor, list[Observation]]:
     # returned data_y is a tensor shaped (entries, values)
-    entry_no = len(data_x)
+    entry_no = len(data_y)
     meta = np.linspace(0, entry_no, entry_no, endpoint=False, dtype=int)
     np.random.shuffle(meta)
     meta = np.array_split(meta, num_observations)
     meta = [Observation(x, i) for i, x in enumerate(meta)]
-    data_y = generateValues(data_x, value_func)
     if(add_noise is True):
         data_y = addNoise(data_y)
-    data_y = data_y
     obs_y = torch.stack([torch.index_select(
         data_y, 0, torch.tensor(obs.entries_indices)).mean(axis=0) for obs in meta]).float()
-    return [data_y, obs_y, meta]
+    return [obs_y, meta]
+
+
+def generateData(entry_no: int, num_observations: int, dim_no: int, value_func: Callable, add_noise: bool, options: dict = {}) -> list[torch.tensor, torch.tensor, torch.tensor, list[Observation]]:
+    data_x = generatePoints(entry_no, dim_no, options)
+    data_y = generateValues(data_x, value_func)
+    obs_y, meta = generateObservations(
+        data_y, num_observations, value_func, add_noise)
+    return [data_x, data_y, obs_y, meta]

@@ -3,18 +3,12 @@ from dataset import Dataset
 import numpy as np
 from itertools import chain
 from typing import Callable
-import torch.nn.functional as F
 from base_model import Model
 
 
 def length_to_range(lengths: list[int]):
     lengths = [0] + np.cumsum(lengths).tolist()
     return [range(a, b) for a, b in zip(lengths[:-1], lengths[1:])]
-
-
-class StandardLosses:
-    def mse_loss(self, predictions: torch.tensor, expectations: torch.tensor) -> torch.tensor:
-        return F.mse_loss(predictions, expectations)
 
 
 class StandardModel(Model):

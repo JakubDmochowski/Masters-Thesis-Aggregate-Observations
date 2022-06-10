@@ -6,17 +6,19 @@ from typing import Callable
 import torch.nn.functional as F
 from aggregate_utils import length_to_range
 from base_model import Model
-
-
-class AggregateLosses:
-    def gaussian(self, entry_predictions: torch.tensor, observations: torch.tensor, lengths: list[int]):
-        ranges = length_to_range(lengths)
-        predictions = torch.stack(
-            [entry_predictions[r].mean(axis=0) for r in ranges])
-        return F.mse_loss(predictions, observations) * (np.array(lengths).sum() / len(lengths))
+from typing import Callable
 
 
 class AggregateModel(Model):
+    def applyAggregateLoss(self, loss: Callable, entry_predictions: torch.tensor, observations: torch.tensor, lengths: list[int]):
+        ranges = length_to_range(lengths)
+        predictions = torch.stack(
+            [entry_predictions[r].mean(axis=0) for r in ranges])
+        # print(predictions, observations)
+        # print(loss(predictions, observations))
+        # exit(1)
+        return loss(predictions, observations) * (np.array(lengths).sum() / len(lengths))
+
     def train(self, dataset: Dataset, optimizer, loss: Callable, batch_size: int) -> None:
         data_y_batch_indices = np.random.choice(
             len(dataset.observations), size=batch_size)
@@ -32,7 +34,8 @@ class AggregateModel(Model):
         l_batch = [obs.length for obs in observations_batch]
 
         optimizer.zero_grad()
-        l = loss(self.model(x_batch), y_batch, l_batch)
+        l = self.applyAggregateLoss(
+            loss, self.model(x_batch), y_batch, l_batch)
         l.backward()
         optimizer.step()
         return l

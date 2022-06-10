@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from typing import Callable
 import torch
+from sklearn import metrics
 
 
 def plotLosses(loss_history: list[list[float]]):
@@ -18,19 +19,31 @@ def plotLosses(loss_history: list[list[float]]):
     fig.show()
 
 
-def plotXY(data_x: torch.tensor, expected_y: torch.tensor, valueFunc: Callable, series: list[dict]):
+def plotXY(data_x: torch.tensor, expected_y: torch.tensor, series: list[dict], value_func: Callable = None):
     fig, ax = plt.subplots(figsize=(8, 8))
-    x = np.array([x[0] for x in data_x.numpy()])
-    expected_y = np.array([y[0] for y in expected_y.numpy()])
-    x_min, x_max = [np.min(x), np.max(x)]
-    x_lin = np.linspace(x_min, x_max, 500)
-    y_lin = list(map(lambda x: valueFunc([x]), x_lin))
-    ax.plot(x_lin, y_lin, color="k",
-            linewidth=3, label="valueFunc")
+    if value_func is not None:
+        x = np.array([x[0] for x in data_x.numpy()])
+        expected_y = np.array([y[0] for y in expected_y.numpy()])
+        x_min, x_max = [np.min(x), np.max(x)]
+        x_lin = np.linspace(x_min, x_max, 500)
+        y_lin = list(map(lambda x: value_func([x]), x_lin))
+        ax.plot(x_lin, y_lin, color="k",
+                linewidth=3, label="value_func")
     for s in series:
         ax.scatter(s["data_x"], s["data_y"],
                    label=s["label"], marker=s["marker"])
     ax.set_xlabel('x')
     ax.set_ylabel('y')
     ax.legend()
+    fig.show()
+
+
+def plotROC(targets, predictions, title):
+    fig, ax = plt.subplots(figsize=(8, 8))
+    fpr, tpr, _ = metrics.roc_curve(
+        targets.reshape(-1),  predictions.reshape(-1))
+    ax.plot(fpr, tpr)
+    ax.set_xlabel('True Positive Rate')
+    ax.set_ylabel('False Positive Rate')
+    ax.set_title(title)
     fig.show()
