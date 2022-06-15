@@ -21,9 +21,9 @@ torch.manual_seed(RANDOM_SEED)
 # global variables
 NUM_OBSERVATIONS = 50
 BATCH_SIZE = 32
-NUM_ITERS = 200
+NUM_ITERS = 20
 TEST_SPLIT = 0.2
-USE_TABULAR_DATA = True
+USE_TABULAR_DATA = False
 LOSS = torch.nn.functional.mse_loss
 if USE_TABULAR_DATA is True:
     LOSS = torch.nn.BCELoss()
@@ -93,6 +93,7 @@ with torch.no_grad():
     data_x_a, aggregate_predictions = aggregate_model.test(dataset=data_test)
     data_x_s, standard_predictions = standard_model.test(dataset=data_test)
 
+plotLosses(loss_history)
 if USE_TABULAR_DATA is False:
     series = [
         {
@@ -116,21 +117,19 @@ if USE_TABULAR_DATA is False:
     ]
     plotXY(data_x=data_x, expected_y=expected_y,
            series=series, value_func=valFunc)
-plotLosses(loss_history)
-
-# SVM baseline algorithm
-x_train = observationSubsetFor(data=data_x, dataset=data_train)
-y_train = observationSubsetFor(data=expected_y, dataset=data_train)
-x_test = observationSubsetFor(data=data_x, dataset=data_test)
-y_test = observationSubsetFor(data=expected_y, dataset=data_test)
-clf = svm.SVC(kernel='linear', degree=2)
-clf.fit(x_train, y_train[:, 0])
-y_pred = clf.predict(x_test)
-plotROC(y_test[:, 0], y_pred, "SVM ROC")
-# SVM end
-
-targets = observationSubsetFor(data=expected_y, dataset=data_test)
-plotROC(targets, aggregate_predictions, "aggregate ROC")
-plotROC(targets, standard_predictions, "standard ROC")
+else:
+    # SVM baseline algorithm
+    x_train = observationSubsetFor(data=data_x, dataset=data_train)
+    y_train = observationSubsetFor(data=expected_y, dataset=data_train)
+    x_test = observationSubsetFor(data=data_x, dataset=data_test)
+    y_test = observationSubsetFor(data=expected_y, dataset=data_test)
+    clf = svm.SVC(kernel='linear', degree=2)
+    clf.fit(x_train, y_train[:, 0])
+    y_pred = clf.predict(x_test)
+    plotROC(y_test[:, 0], y_pred, "SVM ROC")
+    # SVM end
+    targets = observationSubsetFor(data=expected_y, dataset=data_test)
+    plotROC(targets, aggregate_predictions, "aggregate ROC")
+    plotROC(targets, standard_predictions, "standard ROC")
 
 input("Press Enter to continue...")
