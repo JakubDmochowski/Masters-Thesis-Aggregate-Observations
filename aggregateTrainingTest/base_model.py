@@ -29,7 +29,8 @@ class Model:
             nn.Linear(128, self.output_dim),
         )
         if self.classification is True:
-            self.model = nn.Sequential(self.model, nn.Softmax())
+            self.model = nn.Sequential(
+                self.model, nn.Softmax(dim=1))
 
     def test(self, dataset: Dataset):
         data_x_indices = list(
