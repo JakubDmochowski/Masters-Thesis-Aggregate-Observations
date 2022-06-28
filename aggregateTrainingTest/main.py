@@ -9,7 +9,7 @@ from sklearn.model_selection import train_test_split
 import torch
 from torch import optim
 from tqdm import trange
-from plot_utils import plotXY, plotLosses, plotROC
+from plot_utils import plotXY, plotLosses, plotROC, plotAUC
 import torch.nn.functional as F
 from sklearn import svm
 
@@ -74,6 +74,10 @@ aggregate_model = AggregateModel(classification=CLASSIFICATION)
 aggregate_model.getModelFor(data_train)
 standard_model = StandardModel(classification=CLASSIFICATION)
 standard_model.getModelFor(data_train)
+
+aggregate_prediction_history = []
+standard_prediction_history = []
+
 for _ in trange(NUM_ITERS):
     aggregate_loss = aggregate_model.train(dataset=data_train,
                                            optimizer=optim.Adam(
@@ -86,12 +90,14 @@ for _ in trange(NUM_ITERS):
                                          loss=LOSS,
                                          batch_size=BATCH_SIZE)
     loss_history.append([aggregate_loss, standard_loss])
-aggregate_predictions = None
-standard_predictions = None
 
-with torch.no_grad():
-    data_x_a, aggregate_predictions = aggregate_model.test(dataset=data_test)
-    data_x_s, standard_predictions = standard_model.test(dataset=data_test)
+    with torch.no_grad():
+        data_x_a, aggregate_predictions = aggregate_model.test(
+            dataset=data_test)
+        data_x_s, standard_predictions = standard_model.test(
+            dataset=data_test)
+        aggregate_prediction_history.append(aggregate_predictions)
+        standard_prediction_history.append(standard_predictions)
 
 plotLosses(loss_history)
 if USE_TABULAR_DATA is False:
@@ -128,8 +134,10 @@ else:
     y_pred = clf.predict(x_test)
     plotROC(y_test[:, 0], y_pred, "SVM ROC")
     # SVM end
+    # plotROC(targets, aggregate_predictions, "aggregate ROC")
+    # plotROC(targets, standard_predictions, "standard ROC")
     targets = observationSubsetFor(data=expected_y, dataset=data_test)
-    plotROC(targets, aggregate_predictions, "aggregate ROC")
-    plotROC(targets, standard_predictions, "standard ROC")
+    plotAUC(aggregate_prediction_history, targets, 'aggregate')
+    plotAUC(standard_prediction_history, targets, 'standard')
 
 input("Press Enter to continue...")

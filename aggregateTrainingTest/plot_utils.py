@@ -47,3 +47,16 @@ def plotROC(targets, predictions, title):
     ax.set_ylabel('False Positive Rate')
     ax.set_title(title)
     fig.show()
+
+
+def plotAUC(prediction_history, targets, title):
+    fig, ax = plt.subplots(figsize=(8, 8))
+    auc_history = []
+    for predictions in prediction_history:
+        auc_history.append(metrics.roc_auc_score(
+            targets.reshape(-1), predictions.reshape(-1)))
+    ax.plot(auc_history)
+    ax.set_xlabel('iteration')
+    ax.set_ylabel('AUC Score')
+    ax.set_title(f"AUC: {title}")
+    fig.show()
