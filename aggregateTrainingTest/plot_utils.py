@@ -49,14 +49,17 @@ def plotROC(targets, predictions, title):
     fig.show()
 
 
-def plotAUC(prediction_history, targets, title):
+def plotAUC(models, targets, every):
     fig, ax = plt.subplots(figsize=(8, 8))
-    auc_history = []
-    for predictions in prediction_history:
-        auc_history.append(metrics.roc_auc_score(
-            targets.reshape(-1), predictions.reshape(-1)))
-    ax.plot(auc_history)
+    for model in models:
+        auc_history = []
+        for index, predictions in enumerate(model["prediction_history"]):
+            auc_history.append([index * every, metrics.roc_auc_score(
+                targets.reshape(-1), predictions.reshape(-1))])
+        auc_history = np.array(auc_history)
+        ax.plot(auc_history[:, 0], auc_history[:, 1], label=model["label"])
     ax.set_xlabel('iteration')
     ax.set_ylabel('AUC Score')
-    ax.set_title(f"AUC: {title}")
+    ax.set_title(f"AUC")
+    ax.legend()
     fig.show()
