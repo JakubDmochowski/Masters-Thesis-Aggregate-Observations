@@ -8,7 +8,7 @@ from data.data_utils import generateValues, observationSubsetFor, splitData
 import torch
 from torch import optim
 from tqdm import trange
-from plot_utils import plotXY, plotLosses, plotROC, plotAUC
+from plot_utils import plotXY, plotLosses, plotAUC, plotPrecision, plotRecall
 import torch.nn.functional as F
 from sklearn import svm
 
@@ -20,7 +20,7 @@ torch.manual_seed(RANDOM_SEED)
 # global variables
 NUM_OBSERVATIONS = 50
 BATCH_SIZE = 32
-NUM_ITERS = 800
+NUM_ITERS = 5000
 VALIDATION_SPLIT = 0.2
 TEST_SPLIT = 0.1
 VALIDATE_EVERY_K_ITERATIONS = 5
@@ -145,7 +145,7 @@ else:
     # plotROC(targets, aggregate_predictions, "aggregate ROC")
     # plotROC(targets, standard_predictions, "standard ROC")
     targets = observationSubsetFor(data=expected_y, dataset=data_validate)
-    auc_data = [
+    prediction_data = [
         {
             "label": 'aggregate model',
             "prediction_history": aggregate_prediction_history,
@@ -155,7 +155,11 @@ else:
             "prediction_history": standard_prediction_history,
         }
     ]
-    plotAUC(auc_data, targets,
+    plotAUC(prediction_data, targets,
             every=VALIDATE_EVERY_K_ITERATIONS)
+    plotPrecision(prediction_data, targets,
+                  every=VALIDATE_EVERY_K_ITERATIONS)
+    plotRecall(prediction_data, targets,
+               every=VALIDATE_EVERY_K_ITERATIONS)
 
 input("Press Enter to continue...")

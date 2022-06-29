@@ -63,3 +63,43 @@ def plotAUC(models, targets, every):
     ax.set_title(f"AUC")
     ax.legend()
     fig.show()
+
+
+def plotPrecision(models, targets, every):
+    fig, ax = plt.subplots(figsize=(8, 8))
+    for model in models:
+        precision_history = []
+        for index, predictions in enumerate(model["prediction_history"]):
+            predictions = torch.tensor(
+                list(map(lambda x: x.round(), predictions.numpy())), dtype=torch.int)
+            precision = metrics.precision_score(
+                targets.reshape(-1), predictions.reshape(-1))
+            precision_history.append([index * every, precision])
+        precision_history = np.array(precision_history)
+        ax.plot(precision_history[:, 0],
+                precision_history[:, 1], label=model["label"])
+    ax.set_xlabel('iteration')
+    ax.set_ylabel('Precision Score')
+    ax.set_title(f"Precision")
+    ax.legend()
+    fig.show()
+
+
+def plotRecall(models, targets, every):
+    fig, ax = plt.subplots(figsize=(8, 8))
+    for model in models:
+        recall_history = []
+        for index, predictions in enumerate(model["prediction_history"]):
+            predictions = torch.tensor(
+                list(map(lambda x: x.round(), predictions.numpy())), dtype=torch.int)
+            recall = metrics.recall_score(
+                targets[:, 0].reshape(-1), predictions[:, 0].reshape(-1))
+            recall_history.append([index * every, recall])
+        recall_history = np.array(recall_history)
+        ax.plot(recall_history[:, 0],
+                recall_history[:, 1], label=model["label"])
+    ax.set_xlabel('iteration')
+    ax.set_ylabel('Recall Score')
+    ax.set_title(f"Recall")
+    ax.legend()
+    fig.show()
