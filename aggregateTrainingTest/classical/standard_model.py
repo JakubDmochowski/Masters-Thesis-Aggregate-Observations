@@ -1,9 +1,9 @@
 import torch
-from dataset import Dataset
+from data.dataset import Dataset
 import numpy as np
 from itertools import chain
 from typing import Callable
-from base_model import Model
+from classical.base_model import Model
 
 
 def length_to_range(lengths: list[int]):

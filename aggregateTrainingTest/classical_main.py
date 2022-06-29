@@ -1,7 +1,7 @@
 import numpy as np
-from aggregate_model import AggregateModel
-from standard_model import StandardModel
-from dataset import Dataset
+from classical.aggregate_model import AggregateModel
+from classical.standard_model import StandardModel
+from data.dataset import Dataset
 from data.tabular import retrieveData
 from data.synthetic import generateData
 from data.data_utils import generateValues, observationSubsetFor, splitData
@@ -20,7 +20,7 @@ torch.manual_seed(RANDOM_SEED)
 # global variables
 NUM_OBSERVATIONS = 50
 BATCH_SIZE = 32
-NUM_ITERS = 5000
+NUM_ITERS = 500
 VALIDATION_SPLIT = 0.2
 TEST_SPLIT = 0.1
 VALIDATE_EVERY_K_ITERATIONS = 5

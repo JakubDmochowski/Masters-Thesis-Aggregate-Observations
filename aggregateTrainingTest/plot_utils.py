@@ -70,8 +70,8 @@ def plotPrecision(models, targets, every):
     for model in models:
         precision_history = []
         for index, predictions in enumerate(model["prediction_history"]):
-            predictions = torch.tensor(
-                list(map(lambda x: x.round(), predictions.numpy())), dtype=torch.int)
+            predictions = torch.tensor(np.array(
+                list(map(lambda x: x.round(), predictions.numpy()))), dtype=torch.int)
             precision = metrics.precision_score(
                 targets.reshape(-1), predictions.reshape(-1))
             precision_history.append([index * every, precision])
@@ -90,8 +90,8 @@ def plotRecall(models, targets, every):
     for model in models:
         recall_history = []
         for index, predictions in enumerate(model["prediction_history"]):
-            predictions = torch.tensor(
-                list(map(lambda x: x.round(), predictions.numpy())), dtype=torch.int)
+            predictions = torch.tensor(np.array(
+                list(map(lambda x: x.round(), predictions.numpy()))), dtype=torch.int)
             recall = metrics.recall_score(
                 targets[:, 0].reshape(-1), predictions[:, 0].reshape(-1))
             recall_history.append([index * every, recall])

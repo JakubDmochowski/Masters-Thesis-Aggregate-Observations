@@ -1,6 +1,6 @@
 import torch
 import numpy as np
-from dataset import Observation
+from data.dataset import Observation
 from typing import Callable
 from data.data_utils import generateValues
 

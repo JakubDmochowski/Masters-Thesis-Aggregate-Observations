@@ -1,5 +1,5 @@
 import torch
-from dataset import Dataset
+from data.dataset import Dataset
 from typing import Callable
 import numpy as np
 from itertools import chain

@@ -1,4 +1,4 @@
-from dataset import Observation
+from data.dataset import Observation
 import torch
 import numpy as np
 import os

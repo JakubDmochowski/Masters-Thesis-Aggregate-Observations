@@ -1,4 +1,4 @@
-from dataset import Dataset
+from data.dataset import Dataset
 from itertools import chain
 from torch import nn
 
