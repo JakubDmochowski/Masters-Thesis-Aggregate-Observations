@@ -28,9 +28,3 @@ class StandardModel(Model):
         l.backward()
         optimizer.step()
         return l
-
-    def test(self, dataset: Dataset) -> list:
-        data_x_indices = list(
-            chain(*[obs.entries_indices for obs in dataset.observations]))
-        x = dataset.data_x[data_x_indices]
-        return [x, self.model(x)]

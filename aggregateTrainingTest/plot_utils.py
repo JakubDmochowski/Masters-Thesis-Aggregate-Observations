@@ -8,9 +8,9 @@ from sklearn import metrics
 def plotLosses(loss_history: list[list[float]]):
     fig, ax = plt.subplots(figsize=(8, 8))
     x = range(0, len(loss_history))
-    aggregate = [losses[0].detach().numpy() for losses in loss_history]
-    standard = [losses[1].detach().numpy() for losses in loss_history]
-    ax.plot(x, aggregate, label="aggregate")
+    # aggregate = [losses["aggregate"].detach().numpy() for losses in loss_history]
+    # ax.plot(x, aggregate, label="aggregate")
+    standard = [losses["standard"].detach().numpy() for losses in loss_history]
     ax.plot(x, standard, label="standard")
     ax.set_xlabel('iteration')
     ax.set_ylabel('loss')

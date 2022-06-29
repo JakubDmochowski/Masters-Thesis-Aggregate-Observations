@@ -14,9 +14,6 @@ class AggregateModel(Model):
         ranges = length_to_range(lengths)
         predictions = torch.stack(
             [entry_predictions[r].mean(axis=0) for r in ranges])
-        # print(predictions, observations)
-        # print(loss(predictions, observations))
-        # exit(1)
         return loss(predictions, observations) * (np.array(lengths).sum() / len(lengths))
 
     def train(self, dataset: Dataset, optimizer, loss: Callable, batch_size: int) -> None:
