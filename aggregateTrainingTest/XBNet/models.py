@@ -1,10 +1,12 @@
+from typing import Dict
 import torch
 import numpy as np
-from xgboost import XGBClassifier,XGBRegressor
+from xgboost import XGBClassifier, XGBRegressor
 from collections import OrderedDict
 from XBNet.Seq import Seq
 from data.data_utils import observationSubsetFor
 from data.dataset import Dataset
+
 
 class XBNETClassifier(torch.nn.Module):
     '''
@@ -15,21 +17,23 @@ class XBNETClassifier(torch.nn.Module):
          :param num_layers(int): Number of layers in the neural network
          :param num_layers_boosted(int,optional): Number of layers to be boosted in the neural network. Default value: 1
     '''
-    def __init__(self, dataset: Dataset, num_layers_boosted=2):
+
+    def __init__(self, dataset: Dataset, layers_raw: list[dict], num_layers_boosted=3):
         super(XBNETClassifier, self).__init__()
         self.name = "Classification"
         self.classification = True
         self.layers = OrderedDict()
         self.boosted_layers = {}
         self.num_layers_boosted = num_layers_boosted
-        
+        self.layers_raw = layers_raw
+
         self.X = observationSubsetFor(data=dataset.data_x, dataset=dataset)
         self.y = observationSubsetFor(data=dataset.data_y, dataset=dataset)
         self.prepare_model(dataset)
         self.base_tree()
 
-        self.layers[str(0)].weight = torch.nn.Parameter(torch.from_numpy(self.temp.T))
-
+        self.layers[str(0)].weight = torch.nn.Parameter(
+            torch.from_numpy(self.temp.T))
 
         self.xg = XGBClassifier()
 
@@ -45,26 +49,40 @@ class XBNETClassifier(torch.nn.Module):
         self.l = l
 
     def prepare_model(self, dataset):
-        self.input_dim = len(dataset.data_x[0])
-        self.output_dim = len(dataset.data_y[0])
-        self.first_layer_output_dim = 8
-        layers = [
-            torch.nn.Linear(self.input_dim, self.first_layer_output_dim),
-            # torch.nn.ReLU(inplace=True),
-            # torch.nn.BatchNorm1d(128),
-            # torch.nn.Dropout(p=0.2),
-            # torch.nn.Linear(self.first_layer_output_dim, 1),
-            # torch.nn.ReLU(inplace=True),
-            # torch.nn.BatchNorm1d(128),
-            # torch.nn.Dropout(p=0.2),
-            torch.nn.Linear(self.first_layer_output_dim, self.output_dim),
-        ]
+        self.input_nodes = len(dataset.data_x[0])
+        self.output_nodes = len(dataset.data_y[0])
+        print(f"input_nodes: {self.input_nodes}")
+        print(f"output_nodes: {self.output_nodes}")
+        layers = []
+        for index, layer in enumerate(self.layers_raw):
+            currlayer = layer
+            prevlayer = self.layers_raw[index - 1]
+            if not index:
+                layers.append(torch.nn.Linear(
+                    self.input_nodes, currlayer['nodes'], bias=currlayer['bias']))
+                if currlayer['nlin']:
+                    layers.append(currlayer['nlin'])
+                if currlayer['norm']:
+                    layers.append(torch.nn.BatchNorm1d(currlayer['nodes'])),
+                if currlayer['drop']:
+                    layers.append(torch.nn.Dropout(0.2)),
+            else:
+                layers.append(torch.nn.Linear(
+                    prevlayer['nodes'], currlayer['nodes'], bias=currlayer['bias']))
+                if currlayer['nlin']:
+                    layers.append(currlayer['nlin'])
+                if currlayer['norm']:
+                    layers.append(torch.nn.BatchNorm1d(currlayer['nodes'])),
+                if currlayer['drop']:
+                    layers.append(torch.nn.Dropout(0.2)),
+        layers.append(torch.nn.Linear(
+            self.layers_raw[len(self.layers_raw) - 1]['nodes'], self.output_nodes, bias=True))
         for index, layer in enumerate(layers):
             self.layers[str(index)] = layer
         if self.classification is True:
             self.layers[str(len(layers))] = torch.nn.Softmax(dim=1)
-            # self.layers = torch.nn.Sequential(
-            #     self.layers, torch.nn.Softmax(dim=1))
+       # self.layers = torch.nn.Sequential(
+        #     self.layers, torch.nn.Softmax(dim=1))
 
     def base_tree(self):
         '''
@@ -73,20 +91,20 @@ class XBNETClassifier(torch.nn.Module):
         '''
         self.temp1 = XGBClassifier().fit(self.X, self.y).feature_importances_
         self.temp = self.temp1
-        for i in range(1, self.first_layer_output_dim):
+        for i in range(1, self.layers_raw[0]['nodes']):
             self.temp = np.column_stack((self.temp, self.temp1))
         # print(self.temp)
 
     def forward(self, x, train=True):
-        x = self.sequential(x, self.l,train)
+        x = self.sequential(x, self.l, train)
         return x
 
-    def save(self,path):
+    def save(self, path):
         '''
         Saves the entire model in the provided path
         :param path(string): Path where model should be saved
         '''
-        torch.save(self,path)
+        torch.save(self, path)
 
 
 class XBNETRegressor(torch.nn.Module):
@@ -98,6 +116,7 @@ class XBNETRegressor(torch.nn.Module):
          :param num_layers(int): Number of layers in the neural network
          :param num_layers_boosted(int,optional): Number of layers to be boosted in the neural network. Default value: 1
     '''
+
     def __init__(self, X_values, y_values, num_layers, num_layers_boosted=1):
         super(XBNETRegressor, self).__init__()
         self.name = "Regression"
@@ -111,8 +130,8 @@ class XBNETRegressor(torch.nn.Module):
         self.take_layers_dim()
         self.base_tree()
 
-        self.layers[str(0)].weight = torch.nn.Parameter(torch.from_numpy(self.temp.T))
-
+        self.layers[str(0)].weight = torch.nn.Parameter(
+            torch.from_numpy(self.temp.T))
 
         self.xg = XGBRegressor()
 
@@ -128,15 +147,16 @@ class XBNETRegressor(torch.nn.Module):
         '''
         self.l = l
 
-
     def take_layers_dim(self):
         '''
         Creates the neural network by taking input from the user
         '''
         print("Enter dimensions of linear layers: ")
         for i in range(self.num_layers):
-            inp = int(input("Enter input dimensions of layer " + str(i + 1) + ": "))
-            out = int(input("Enter output dimensions of layer " + str(i + 1)+ ": "))
+            inp = int(
+                input("Enter input dimensions of layer " + str(i + 1) + ": "))
+            out = int(
+                input("Enter output dimensions of layer " + str(i + 1) + ": "))
             set_bias = bool(input("Set bias as True or False: "))
             self.layers[str(i)] = torch.nn.Linear(inp, out, bias=set_bias)
             if i == 0:
@@ -164,12 +184,12 @@ class XBNETRegressor(torch.nn.Module):
             self.temp = np.column_stack((self.temp, self.temp1))
 
     def forward(self, x, train=True):
-        x = self.sequential(x,self.l,train)
+        x = self.sequential(x, self.l, train)
         return x
 
-    def save(self,path):
+    def save(self, path):
         '''
         Saves the entire model in the provided path
         :param path(string): Path where model should be saved
         '''
-        torch.save(self,path)
+        torch.save(self, path)

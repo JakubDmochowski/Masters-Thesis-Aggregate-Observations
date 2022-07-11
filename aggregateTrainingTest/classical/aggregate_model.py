@@ -3,7 +3,6 @@ from data.dataset import Dataset
 import numpy as np
 from itertools import chain
 from typing import Callable
-import torch.nn.functional as F
 from aggregate_utils import length_to_range
 from classical.base_model import Model
 from typing import Callable

@@ -2,10 +2,12 @@ import torch
 import numpy as np
 from collections import OrderedDict
 
+
 class Seq(torch.nn.Sequential):
     '''
      Seq uses sequential module to implement tree in the forward.
     '''
+
     def give(self, xg, num_layers_boosted, ep=0.001):
         '''
         Saves various information into the object for further usage in the training process
@@ -18,8 +20,8 @@ class Seq(torch.nn.Sequential):
         self.boosted_layers = OrderedDict()
         self.num_layers_boosted = num_layers_boosted
 
-    def forward(self, input,train,l=torch.Tensor([1])):
-        l,train = train,l
+    def forward(self, input, train, l=torch.Tensor([1])):
+        l, train = train, l
         for i, module in enumerate(self):
             input = module(input)
             x0 = input

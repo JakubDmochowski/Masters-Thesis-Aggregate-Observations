@@ -5,8 +5,8 @@ from torch import nn
 
 class Model:
     def __init__(self, classification: bool = False):
-        self.output_dim = None
-        self.input_dim = None
+        self.output_nodes = None
+        self.input_nodes = None
         self.model = None
         self.classification = classification
 
@@ -15,10 +15,10 @@ class Model:
 
     def getModelFor(self, dataset: Dataset) -> None:
         Dataset.validate(dataset)
-        self.input_dim = len(dataset.data_x[0])
-        self.output_dim = len(dataset.data_y[0])
+        self.input_nodes = len(dataset.data_x[0])
+        self.output_nodes = len(dataset.data_y[0])
         self.model = nn.Sequential(
-            nn.Linear(self.input_dim, 128),
+            nn.Linear(self.input_nodes, 128),
             nn.ReLU(inplace=True),
             nn.BatchNorm1d(128),
             nn.Dropout(p=0.2),
@@ -26,7 +26,7 @@ class Model:
             nn.ReLU(inplace=True),
             nn.BatchNorm1d(128),
             nn.Dropout(p=0.2),
-            nn.Linear(128, self.output_dim),
+            nn.Linear(128, self.output_nodes),
         )
         if self.classification is True:
             self.model = nn.Sequential(

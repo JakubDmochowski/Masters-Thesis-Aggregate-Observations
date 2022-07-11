@@ -1,15 +1,14 @@
 import numpy as np
-# from XBNet.aggregate_model import AggregateModel
+from XBNet.aggregate_model import AggregateModel
 from XBNet.standard_model import StandardModel
 from data.dataset import Dataset
-from data.tabular import retrieveData
+from data.tabular.breast_cancer_2 import retrieveData, getWeights
 from data.synthetic import generateData
 from data.data_utils import generateValues, observationSubsetFor, splitData
 import torch
 from torch import optim
 from tqdm import trange
-from plot_utils import plotXY, plotLosses, plotAUC, plotPrecision, plotRecall
-import torch.nn.functional as F
+from plot_utils import plotXY, plotLosses, plotAUC, plotPrecision, plotRecall, plotConfusionMatrix
 from sklearn import svm
 
 RANDOM_SEED = 2022
@@ -20,14 +19,19 @@ torch.manual_seed(RANDOM_SEED)
 # global variables
 NUM_OBSERVATIONS = 50
 BATCH_SIZE = 32
-NUM_ITERS = 1000
+NUM_ITERS = 300
 VALIDATION_SPLIT = 0.2
 TEST_SPLIT = 0.1
 VALIDATE_EVERY_K_ITERATIONS = 5
 USE_TABULAR_DATA = True
+LEARNING_RATE = 0.005
 LOSS = torch.nn.functional.mse_loss
+USE_WEIGHT = True
 if USE_TABULAR_DATA is True:
-    LOSS = torch.nn.BCELoss()
+    if USE_WEIGHT is True:
+        LOSS = torch.nn.BCELoss(weight=torch.Tensor(getWeights()))
+    else:
+        LOSS = torch.nn.BCELoss()
 CLASSIFICATION = USE_TABULAR_DATA
 
 # synthetic-data-only variables
@@ -70,42 +74,48 @@ data_test = Dataset(data_x=data_x, data_y=data_y,
 data_validate = Dataset(
     data_x=data_x, data_y=expected_y, obs_y=obs_y, observations=meta_test)
 
+
+layers_raw = [{'nodes': 32, 'nlin': torch.nn.ReLU(inplace=True), 'norm': False, 'bias': True, 'drop': False},
+              {'nodes': 20, 'nlin': torch.nn.ReLU(inplace=True), 'norm': True, 'bias': True, 'drop': False}]
+
 loss_history = []
-# aggregate_model = AggregateModel(classification=CLASSIFICATION)
-# aggregate_model.getModelFor(data_train)
-standard_model = StandardModel(classification=CLASSIFICATION)
+standard_model = StandardModel(
+    classification=CLASSIFICATION, layers_raw=layers_raw)
 standard_model.getModelFor(data_train)
+aggregate_model = AggregateModel(
+    classification=CLASSIFICATION, layers_raw=layers_raw)
+aggregate_model.getModelFor(data_train)
 
 aggregate_prediction_history = []
 standard_prediction_history = []
 
 for iterIndex in trange(NUM_ITERS):
-    # aggregate_loss = aggregate_model.train(dataset=data_train,
-    #                                        optimizer=optim.Adam(
-    #                                            aggregate_model.parameters()),
-    #                                        loss=LOSS,
-    #                                        batch_size=BATCH_SIZE)
     standard_loss = standard_model.train(dataset=data_train,
                                          optimizer=optim.Adam(
-                                             standard_model.parameters()),
+                                             standard_model.parameters(), lr=LEARNING_RATE),
                                          loss=LOSS,
                                          batch_size=BATCH_SIZE)
-    # loss_history.append({ 'standard': standard_loss, 'aggregate': aggregate_loss })
-    loss_history.append({ 'standard': standard_loss })
+    aggregate_loss = aggregate_model.train(dataset=data_train,
+                                           optimizer=optim.Adam(
+                                               aggregate_model.parameters(), lr=LEARNING_RATE),
+                                           loss=LOSS,
+                                           batch_size=BATCH_SIZE)
+    loss_history.append(
+        {'standard': standard_loss, 'aggregate': aggregate_loss})
 
     if not iterIndex % VALIDATE_EVERY_K_ITERATIONS:
         with torch.no_grad():
-            # data_x_a, aggregate_predictions = aggregate_model.test(
-            #     dataset=data_validate)
             data_x_s, standard_predictions = standard_model.test(
                 dataset=data_validate)
-            # aggregate_prediction_history.append(aggregate_predictions)
+            data_x_a, aggregate_predictions = aggregate_model.test(
+                dataset=data_validate)
             standard_prediction_history.append(standard_predictions)
+            aggregate_prediction_history.append(aggregate_predictions)
 
 with torch.no_grad():
-    # data_x_a, aggregate_predictions = aggregate_model.test(
-    #     dataset=data_test)
     data_x_s, standard_predictions = standard_model.test(
+        dataset=data_test)
+    data_x_a, aggregate_predictions = aggregate_model.test(
         dataset=data_test)
 
 plotLosses(loss_history)
@@ -117,17 +127,17 @@ if USE_TABULAR_DATA is False:
             "data_x": data_x,
             "data_y": expected_y
         },
-        # {
-        #     "label": "aggregate_prediction",
-        #     "marker": "^",
-        #     "data_x": data_x_a,
-        #     "data_y": aggregate_predictions
-        # },
         {
             "label": "standard_prediction",
             "marker": "o",
             "data_x": data_x_s,
             "data_y": standard_predictions
+        },
+        {
+            "label": "aggregate_prediction",
+            "marker": "^",
+            "data_x": data_x_a,
+            "data_y": aggregate_predictions
         },
     ]
     plotXY(data_x=data_x, expected_y=expected_y,
@@ -147,13 +157,13 @@ else:
     # plotROC(targets, standard_predictions, "standard ROC")
     targets = observationSubsetFor(data=expected_y, dataset=data_validate)
     prediction_data = [
-        # {
-        #     "label": 'aggregate model',
-        #     "prediction_history": aggregate_prediction_history,
-        # },
         {
             "label": 'standard model',
             "prediction_history": standard_prediction_history,
+        },
+        {
+            "label": 'aggregate model',
+            "prediction_history": aggregate_prediction_history,
         }
     ]
     plotAUC(prediction_data, targets,
@@ -162,5 +172,7 @@ else:
                   every=VALIDATE_EVERY_K_ITERATIONS)
     plotRecall(prediction_data, targets,
                every=VALIDATE_EVERY_K_ITERATIONS)
+    plotConfusionMatrix(prediction_data, targets,
+                        every=VALIDATE_EVERY_K_ITERATIONS)
 
 input("Press Enter to continue...")

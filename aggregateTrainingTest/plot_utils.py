@@ -4,14 +4,17 @@ from typing import Callable
 import torch
 from sklearn import metrics
 
+PLOTSIZE = (6, 6)
+PLOTSIZE_SM = (4, 4)
+
 
 def plotLosses(loss_history: list[list[float]]):
-    fig, ax = plt.subplots(figsize=(8, 8))
+    fig, ax = plt.subplots(figsize=PLOTSIZE)
     x = range(0, len(loss_history))
-    # aggregate = [losses["aggregate"].detach().numpy() for losses in loss_history]
-    # ax.plot(x, aggregate, label="aggregate")
-    standard = [losses["standard"].detach().numpy() for losses in loss_history]
-    ax.plot(x, standard, label="standard")
+    models = loss_history[0].keys()
+    for model in models:
+        history = [losses[model].detach().numpy() for losses in loss_history]
+        ax.plot(x, history, label=model)
     ax.set_xlabel('iteration')
     ax.set_ylabel('loss')
     ax.legend()
@@ -20,7 +23,7 @@ def plotLosses(loss_history: list[list[float]]):
 
 
 def plotXY(data_x: torch.tensor, expected_y: torch.tensor, series: list[dict], value_func: Callable = None):
-    fig, ax = plt.subplots(figsize=(8, 8))
+    fig, ax = plt.subplots(figsize=PLOTSIZE)
     if value_func is not None:
         x = np.array([x[0] for x in data_x.numpy()])
         expected_y = np.array([y[0] for y in expected_y.numpy()])
@@ -39,7 +42,7 @@ def plotXY(data_x: torch.tensor, expected_y: torch.tensor, series: list[dict], v
 
 
 def plotROC(targets, predictions, title):
-    fig, ax = plt.subplots(figsize=(8, 8))
+    fig, ax = plt.subplots(figsize=PLOTSIZE)
     fpr, tpr, _ = metrics.roc_curve(
         targets.reshape(-1),  predictions.reshape(-1))
     ax.plot(fpr, tpr)
@@ -50,7 +53,7 @@ def plotROC(targets, predictions, title):
 
 
 def plotAUC(models, targets, every):
-    fig, ax = plt.subplots(figsize=(8, 8))
+    fig, ax = plt.subplots(figsize=PLOTSIZE)
     for model in models:
         auc_history = []
         for index, predictions in enumerate(model["prediction_history"]):
@@ -66,7 +69,7 @@ def plotAUC(models, targets, every):
 
 
 def plotPrecision(models, targets, every):
-    fig, ax = plt.subplots(figsize=(8, 8))
+    fig, ax = plt.subplots(figsize=PLOTSIZE)
     for model in models:
         precision_history = []
         for index, predictions in enumerate(model["prediction_history"]):
@@ -86,7 +89,7 @@ def plotPrecision(models, targets, every):
 
 
 def plotRecall(models, targets, every):
-    fig, ax = plt.subplots(figsize=(8, 8))
+    fig, ax = plt.subplots(figsize=PLOTSIZE)
     for model in models:
         recall_history = []
         for index, predictions in enumerate(model["prediction_history"]):
@@ -103,3 +106,17 @@ def plotRecall(models, targets, every):
     ax.set_title(f"Recall")
     ax.legend()
     fig.show()
+
+
+def plotConfusionMatrix(models, targets, every):
+    for model in models:
+        fig, ax = plt.subplots(figsize=PLOTSIZE_SM)
+        predictions = model["prediction_history"][len(
+            model["prediction_history"]) - 1]
+        predictions = torch.tensor(np.array(
+            list(map(lambda x: x.round(), predictions.numpy()))), dtype=torch.int)
+        metrics.ConfusionMatrixDisplay.from_predictions(
+            targets[:, 0].reshape(-1), predictions[:, 0].reshape(-1), ax=ax)
+        ax.set_title(model["label"])
+        fig.show()
+    # plt.show()
