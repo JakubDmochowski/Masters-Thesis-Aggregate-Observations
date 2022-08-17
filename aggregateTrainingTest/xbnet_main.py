@@ -1,6 +1,6 @@
 import numpy as np
-from XBNet.aggregate_model import AggregateModel
-from XBNet.standard_model import StandardModel
+from models.XBNet.aggregate_model import AggregateModel
+from models.XBNet.standard_model import StandardModel
 from data.dataset import Dataset
 from data.tabular.breast_cancer_2 import retrieveData, getWeights
 from data.synthetic import generateData
@@ -19,12 +19,12 @@ torch.manual_seed(RANDOM_SEED)
 # global variables
 NUM_OBSERVATIONS = 50
 BATCH_SIZE = 32
-NUM_ITERS = 300
+NUM_ITERS = 500
 VALIDATION_SPLIT = 0.2
 TEST_SPLIT = 0.1
 VALIDATE_EVERY_K_ITERATIONS = 5
 USE_TABULAR_DATA = True
-LEARNING_RATE = 0.005
+LEARNING_RATE = 0.001
 LOSS = torch.nn.functional.mse_loss
 USE_WEIGHT = True
 if USE_TABULAR_DATA is True:
