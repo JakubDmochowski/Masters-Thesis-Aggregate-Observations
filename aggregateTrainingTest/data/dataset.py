@@ -33,6 +33,12 @@ class Dataset:
             raise ValueError("Model: No observations in dataset")
         return True
 
+    def useDevice(self, device=None) -> None:
+        if device is not None:
+            self.data_x = self.data_x.to(device)
+            self.data_y = self.data_y.to(device)
+            self.obs_y = self.obs_y.to(device)
+
     def __str__(self):
         return f"data_x(shape): {self.data_x.shape} || data_y(shape): {self.data_y.shape} || obs_y(shape): {self.obs_y.shape} || observations(len): {len(self.observations)}"
 
