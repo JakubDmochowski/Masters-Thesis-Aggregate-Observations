@@ -45,8 +45,8 @@ data_validate = Dataset(
 aggregate_model = AggregateModel()
 standard_model = StandardModel()
 
-data_train.useDevice(device)
-data_validate.useDevice(device)
+# data_train.useDevice(device)
+# data_validate.useDevice(device)
 aggregate_model.train(dataset=data_train, validate=data_validate)
 standard_model.train(dataset=data_train, validate=data_validate)
 
