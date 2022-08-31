@@ -26,23 +26,20 @@ while True:
     except OverflowError:
         maxInt = int(maxInt/10)
 
-filepath = os.getcwd() + "/datasets/criteo/prepared/small_train.csv"
-observations_source = os.getcwd(
-) + "/datasets/criteo/prepared/aggregated_noisy_data_singles.csv"
-observations_destination = os.getcwd(
-) + "/datasets/criteo/prepared/observations.csv"
-observations_meta_destination = os.getcwd(
-) + "/datasets/criteo/prepared/observations_meta.csv"
+prepared_dir_filepath = os.getcwd() + "/datasets/criteo/prepared"
+filepath = prepared_dir_filepath + "/small_train.csv"
+observations_source = prepared_dir_filepath + \
+    "/aggregated_noisy_data_singles.csv"
+observations_destination = prepared_dir_filepath + "/observations.csv"
+observations_meta_destination = prepared_dir_filepath + "/observations_meta.csv"
 CSV_COLUMNS = ["hash_0", "hash_1", "hash_2", "hash_3", "hash_4", "hash_5", "hash_6", "hash_7",
                "hash_8", "hash_9", "hash_10", "hash_11", "hash_12", "hash_13", "hash_14", "hash_15", "hash_16",
                "hash_17", "hash_18", "click", "sale"]
 
 
 def validateDataset() -> None:
-    small_train_filepath = os.getcwd() + "/datasets/criteo/prepared/small_train.csv"
-    small_train = pd.read_csv(small_train_filepath)
-    observations_meta_filepath = os.getcwd(
-    ) + "/datasets/criteo/prepared/observations_meta.csv"
+    small_train = pd.read_csv(filepath)
+    observations_meta_filepath = prepared_dir_filepath + "/observations_meta.csv"
     observations_meta_file = open(observations_meta_filepath)
     observations_meta = csv.reader(observations_meta_file, delimiter=";")
 
@@ -226,6 +223,8 @@ def getNormalizedCTR(clicks: float, counts: float, eps: float, type: str = 'cuto
 
 
 def prepareObservations(force: bool = False, ctr_norm: str = 'cutoff') -> None:
+    if not os.path.exists(prepared_dir_filepath):
+        os.makedirs(prepared_dir_filepath)
     prepareCriteoDataset(force)
     if force or not os.path.exists(observations_destination) or not os.path.exists(observations_meta_destination):
         if os.path.exists(observations_destination):
