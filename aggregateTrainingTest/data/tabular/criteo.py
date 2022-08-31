@@ -9,6 +9,7 @@ import csv
 from tqdm import tqdm
 import shutil
 import errno
+import re
 
 # observations meta csv has some fields that are exceeding csv reader's limits
 # to overcome this problem we set higher limitation
@@ -47,10 +48,8 @@ def validateDataset() -> None:
 
     occurances = np.zeros(len(small_train))
     for observation in observations_meta:
-        entries_indices = observation[0].replace(
-            '[', '').replace(']', '').replace(' ', '')
-        entries_indices = list(
-            map(lambda x: int(x), entries_indices.split(',')))
+        entries_indices = [int(x)
+                           for x in re.sub(r'\[|\]|\s', '', observation[0])]
         for index in entries_indices:
             occurances[index] += 1
 
@@ -73,8 +72,8 @@ def validateDataset() -> None:
     # print(indices_to_remove)
 
 
-def prepareCriteoDataset() -> None:
-    if not os.path.exists(filepath) or not os.path.exists(observations_source):
+def prepareCriteoDataset(force: bool = False) -> None:
+    if force or not os.path.exists(filepath) or not os.path.exists(observations_source):
         if os.path.exists(filepath):
             os.remove(filepath)
         if os.path.exists(observations_source):
@@ -215,13 +214,20 @@ def getRawData() -> list[torch.tensor, torch.tensor]:
     return [data_x, data_y]
 
 
-def normalizeCTR(value) -> float:
-    return
+def getNormalizedCTR(clicks: float, counts: float, eps: float, type: str = 'cutoff') -> float:
+    if type == 'cutoff':
+        counts = max(counts, eps)
+        clicks = min(max(clicks, 0), counts)
+        return clicks / counts
+    else:
+        availableTypes = ['cutoff', 'mirror', 'resample', 'shift', 'resize']
+        raise ValueError(
+            f"Criteo getNormalizedCTR - type argument error: passed value {type}, expected to be one of {availableTypes}")
 
 
-def prepareObservations() -> None:
-    prepareCriteoDataset()
-    if not os.path.exists(observations_destination) or not os.path.exists(observations_meta_destination):
+def prepareObservations(force: bool = False) -> None:
+    prepareCriteoDataset(force)
+    if force or not os.path.exists(observations_destination) or not os.path.exists(observations_meta_destination):
         if os.path.exists(observations_destination):
             os.remove(observations_destination)
         if os.path.exists(observations_meta_destination):
@@ -241,7 +247,7 @@ def prepareObservations() -> None:
         for entry in tqdm(observations_source_file_reader):
             feature_value, feature_id, count, clicks, sales = entry
             # ctr may be negative and bigger than 1 -> should normalize
-            ctr = float(clicks) / max(float(count), EPS)
+            ctr = getNormalizedCTR(float(clicks), float(count), EPS)
             entries_indices = list(
                 np.where(entries[f"hash_{int(feature_id)}"] == int(feature_value))[0])
             if len(entries_indices):
@@ -285,7 +291,7 @@ def getObservations() -> list[torch.tensor, list[Observation]]:
     return retrieveObservations()
 
 
-def retrieveData(num_observations) -> list[torch.tensor, torch.tensor, torch.tensor, list[Observation]]:
+def retrieveData() -> list[torch.tensor, torch.tensor, torch.tensor, list[Observation]]:
     data_x, data_y = getRawData()
     data_x = encodeX(data_x)
     data_y = encodeY(data_y)
