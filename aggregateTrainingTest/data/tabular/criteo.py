@@ -225,7 +225,7 @@ def getNormalizedCTR(clicks: float, counts: float, eps: float, type: str = 'cuto
             f"Criteo getNormalizedCTR - type argument error: passed value {type}, expected to be one of {availableTypes}")
 
 
-def prepareObservations(force: bool = False) -> None:
+def prepareObservations(force: bool = False, ctr_norm: str = 'cutoff') -> None:
     prepareCriteoDataset(force)
     if force or not os.path.exists(observations_destination) or not os.path.exists(observations_meta_destination):
         if os.path.exists(observations_destination):
@@ -247,7 +247,7 @@ def prepareObservations(force: bool = False) -> None:
         for entry in tqdm(observations_source_file_reader):
             feature_value, feature_id, count, clicks, sales = entry
             # ctr may be negative and bigger than 1 -> should normalize
-            ctr = getNormalizedCTR(float(clicks), float(count), EPS)
+            ctr = getNormalizedCTR(float(clicks), float(count), EPS, ctr_norm)
             entries_indices = list(
                 np.where(entries[f"hash_{int(feature_id)}"] == int(feature_value))[0])
             if len(entries_indices):
