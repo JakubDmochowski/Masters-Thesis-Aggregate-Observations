@@ -5,7 +5,7 @@ import os
 import pandas as pd
 import category_encoders as ce
 
-filepath = os.getcwd() + "\\datasets\\breast-cancer-1\\breast-cancer.data"
+filepath = os.getcwd() + "/datasets/breast-cancer-1/breast-cancer.data"
 
 
 def encodeX(entries: pd.DataFrame) -> torch.tensor:
@@ -67,6 +67,7 @@ def encodeY(entries: pd.DataFrame) -> torch.tensor:
     # entries.y = entries.y.map(encoding)
     return torch.tensor(entries.to_numpy()).float()
 
+
 def getRawData() -> list[torch.tensor, torch.tensor]:
     data_x = np.array([])
     contents = pd.read_csv(filepath)
@@ -78,6 +79,7 @@ def getRawData() -> list[torch.tensor, torch.tensor]:
     data_x = contents.filter(regex='[^y]', axis=1)
     data_y = contents.filter(regex='y', axis=1)
     return [data_x, data_y]
+
 
 def retrieveData(num_observations: int) -> list[torch.tensor, torch.tensor, torch.tensor, list[Observation]]:
     data_x, data_y = getRawData()
@@ -97,6 +99,7 @@ def generateObservations(data_y: torch.tensor, num_observations: int) -> list[to
     obs_y = torch.stack([torch.index_select(
         data_y, 0, torch.tensor(obs.entries_indices)).mean(axis=0) for obs in meta]).float()
     return [obs_y, meta]
+
 
 def getWeights() -> tuple[float, float]:
     _, data_y = getRawData()
