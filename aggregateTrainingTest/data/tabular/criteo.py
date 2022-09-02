@@ -10,6 +10,7 @@ from tqdm import tqdm
 import shutil
 import errno
 import re
+import urllib
 
 # observations meta csv has some fields that are exceeding csv reader's limits
 # to overcome this problem we set higher limitation
@@ -26,21 +27,51 @@ while True:
     except OverflowError:
         maxInt = int(maxInt/10)
 
-prepared_dir_filepath = os.getcwd() + "/datasets/criteo/prepared"
-filepath = prepared_dir_filepath + "/small_train.csv"
-observations_source = prepared_dir_filepath + \
-    "/aggregated_noisy_data_singles.csv"
-observations_destination = prepared_dir_filepath + "/observations.csv"
-observations_meta_destination = prepared_dir_filepath + "/observations_meta.csv"
+AGG_PAIR_DATA_SOURCE = 'http://go.criteo.net/criteo-privacy-ml-competition-data/aggregated-noisy-data-pairs.csv.gz'
+MAIN_DATA_SOURCE = 'https://competitions.codalab.org/my/datasets/download/03b1ddf5-f0a9-48b6-a37c-1fb076143f95'
+
+criteo_dirpath = os.getcwd() + "/datasets/criteo"
+prepared_dirpath = criteo_dirpath + "/prepared"
+raw_dirpath = criteo_dirpath + "/raw"
+
+aggregated_noisy_singles_filename = "/aggregated_noisy_data_singles.csv"
+aggregated_noisy_pairs_filename = "/aggregated_noisy_data_pairs.csv"
+small_train_filename = "/small_train.csv"
+
+filepath = prepared_dirpath + small_train_filename
+observations_single_source = prepared_dirpath + aggregated_noisy_singles_filename
+observations_pairs_source = prepared_dirpath + aggregated_noisy_pairs_filename
+observations_destination = prepared_dirpath + "/observations.csv"
+observations_meta_destination = prepared_dirpath + "/observations_meta.csv"
+
 CSV_COLUMNS = ["hash_0", "hash_1", "hash_2", "hash_3", "hash_4", "hash_5", "hash_6", "hash_7",
                "hash_8", "hash_9", "hash_10", "hash_11", "hash_12", "hash_13", "hash_14", "hash_15", "hash_16",
                "hash_17", "hash_18", "click", "sale"]
 
 
+def downloadAggregatedPairs(raw_dirpath: str, force: bool = False):
+    observations_pair_source = raw_dirpath + aggregated_noisy_pairs_filename
+    if not os.path.exists(observations_pair_source):
+        print("downloading additional data...", end='')
+        with urllib.request.urlopen(AGG_PAIR_DATA_SOURCE) as response, open(observations_pair_source, 'wb') as out_file:
+            data = response.read()
+            out_file.write(data)
+        print('finished:', observations_pair_source)
+
+
+def downloadCriteo(raw_dirpath: str, force: bool = False):
+    print(
+        f"Criteo dataset available at URI: {MAIN_DATA_SOURCE}\nPlease download by hand\nUnzip files and put files [{small_train_filename} and {aggregated_noisy_singles_filename}] to directory \"{raw_dirpath}\"")
+
+
+def downloadCriteoDataset(raw_dirpath: str, force: bool = False) -> None:
+    downloadCriteo(raw_dirpath, force)
+    downloadAggregatedPairs(raw_dirpath, force)
+
+
 def validateDataset() -> None:
     small_train = pd.read_csv(filepath)
-    observations_meta_filepath = prepared_dir_filepath + "/observations_meta.csv"
-    observations_meta_file = open(observations_meta_filepath)
+    observations_meta_file = open(observations_meta_destination)
     observations_meta = csv.reader(observations_meta_file, delimiter=";")
 
     occurances = np.zeros(len(small_train))
@@ -70,11 +101,18 @@ def validateDataset() -> None:
 
 
 def prepareCriteoDataset(force: bool = False) -> None:
-    if force or not os.path.exists(filepath) or not os.path.exists(observations_source):
+    if not os.path.exists(criteo_dirpath):
+        os.makedirs(criteo_dirpath)
+    if not os.path.exists(prepared_dirpath):
+        os.makedirs(prepared_dirpath)
+    if not os.path.exists(raw_dirpath):
+        os.makedirs(raw_dirpath)
+    downloadCriteoDataset(raw_dirpath)
+    if force or not os.path.exists(filepath) or not os.path.exists(observations_single_source):
         if os.path.exists(filepath):
             os.remove(filepath)
-        if os.path.exists(observations_source):
-            os.remove(observations_source)
+        if os.path.exists(observations_single_source):
+            os.remove(observations_single_source)
         # indices below are the result of the code commented above
         indices_to_remove = [29,
                              1166,
@@ -171,18 +209,17 @@ def prepareCriteoDataset(force: bool = False) -> None:
                              100993,
                              101999,
                              102131]
-        small_train_filepath = os.getcwd() + "/datasets/criteo/raw/small_train.csv"
-        small_train_filepath_dest = os.getcwd(
-        ) + "/datasets/criteo/prepared/small_train.csv"
-        small_train = pd.read_csv(small_train_filepath)
+        small_train_raw_filepath = raw_dirpath + "/small_train.csv"
+        small_train_prepared_filepath = prepared_dirpath + "/small_train.csv"
+        small_train = pd.read_csv(small_train_raw_filepath)
 
         small_train.drop(index=indices_to_remove, inplace=True)
-        small_train.to_csv(small_train_filepath_dest, index=False)
+        small_train.to_csv(small_train_prepared_filepath, index=False)
 
-        aggregated_noisy_data_singles_src = os.getcwd(
-        ) + "/datasets/criteo/raw/aggregated_noisy_data_singles.csv"
-        aggregated_noisy_data_singles_dest = os.getcwd(
-        ) + "/datasets/criteo/prepared/aggregated_noisy_data_singles.csv"
+        aggregated_noisy_data_singles_src = raw_dirpath + \
+            "/aggregated_noisy_data_singles.csv"
+        aggregated_noisy_data_singles_dest = prepared_dirpath + \
+            "/aggregated_noisy_data_singles.csv"
 
         if not os.path.exists(aggregated_noisy_data_singles_dest):
             if not os.path.exists(aggregated_noisy_data_singles_src):
@@ -223,18 +260,16 @@ def getNormalizedCTR(clicks: float, counts: float, eps: float, type: str = 'cuto
 
 
 def prepareObservations(force: bool = False, ctr_norm: str = 'cutoff') -> None:
-    if not os.path.exists(prepared_dir_filepath):
-        os.makedirs(prepared_dir_filepath)
     prepareCriteoDataset(force)
     if force or not os.path.exists(observations_destination) or not os.path.exists(observations_meta_destination):
         if os.path.exists(observations_destination):
             os.remove(observations_destination)
         if os.path.exists(observations_meta_destination):
             os.remove(observations_meta_destination)
-        observations_source_file = open(observations_source)
-        observations_source_file_reader = csv.reader(
-            observations_source_file, delimiter=',')
-        next(observations_source_file_reader, None)  # skip the headers
+        observations_sour_singlece_file = open(observations_single_source)
+        observations_source_file_single_reader = csv.reader(
+            observations_sour_singlece_file, delimiter=',')
+        next(observations_source_file_single_reader, None)  # skip the headers
         observations_file = open(observations_destination, "w", newline='')
         observations_file_writer = csv.writer(observations_file, delimiter=';')
         observations_meta_file = open(
@@ -243,7 +278,7 @@ def prepareObservations(force: bool = False, ctr_norm: str = 'cutoff') -> None:
             observations_meta_file, delimiter=';')
         observation_index = 0
         entries = pd.read_csv(filepath)
-        for entry in tqdm(observations_source_file_reader):
+        for entry in tqdm(observations_source_file_single_reader):
             feature_value, feature_id, count, clicks, sales = entry
             # ctr may be negative and bigger than 1 -> should normalize
             ctr = getNormalizedCTR(float(clicks), float(count), EPS, ctr_norm)
@@ -256,7 +291,7 @@ def prepareObservations(force: bool = False, ctr_norm: str = 'cutoff') -> None:
                 observation_index += 1
         observations_file.close()
         observations_meta_file.close()
-        observations_source_file.close()
+        observations_sour_singlece_file.close()
     return
 
 
