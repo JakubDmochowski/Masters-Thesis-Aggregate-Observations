@@ -7,8 +7,6 @@ import category_encoders as ce
 import sys
 import csv
 from tqdm import tqdm
-import shutil
-import errno
 import re
 import urllib
 
@@ -39,8 +37,8 @@ aggregated_noisy_pairs_filename = "/aggregated_noisy_data_pairs.csv"
 small_train_filename = "/small_train.csv"
 
 filepath = prepared_dirpath + small_train_filename
-observations_single_source = prepared_dirpath + aggregated_noisy_singles_filename
-observations_pairs_source = prepared_dirpath + aggregated_noisy_pairs_filename
+observations_single_source = raw_dirpath + aggregated_noisy_singles_filename
+observations_pairs_source = raw_dirpath + aggregated_noisy_pairs_filename
 observations_destination = prepared_dirpath + "/observations.csv"
 observations_meta_destination = prepared_dirpath + "/observations_meta.csv"
 
@@ -215,18 +213,6 @@ def prepareCriteoDataset(force: bool = False) -> None:
 
         small_train.drop(index=indices_to_remove, inplace=True)
         small_train.to_csv(small_train_prepared_filepath, index=False)
-
-        aggregated_noisy_data_singles_src = raw_dirpath + \
-            "/aggregated_noisy_data_singles.csv"
-        aggregated_noisy_data_singles_dest = prepared_dirpath + \
-            "/aggregated_noisy_data_singles.csv"
-
-        if not os.path.exists(aggregated_noisy_data_singles_dest):
-            if not os.path.exists(aggregated_noisy_data_singles_src):
-                raise FileNotFoundError(
-                    errno.ENOENT, os.strerror(errno.ENOENT), aggregated_noisy_data_singles_src)
-            shutil.copyfile(aggregated_noisy_data_singles_src,
-                            aggregated_noisy_data_singles_dest)
 
 
 def encodeX(entries: pd.DataFrame) -> torch.tensor:
