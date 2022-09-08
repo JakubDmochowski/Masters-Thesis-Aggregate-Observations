@@ -117,8 +117,9 @@ def prepareCriteoDataset(removeOutliers: bool = False) -> None:
     small_train_prepared_filepath = prepared_dirpath + "/small_train.csv"
     small_train = pd.read_csv(small_train_raw_filepath)
     meta = getMeta()
-    if not 'removeOutliers' in meta or 'removeOutliers' in meta and meta['removeOutliers'] != str(removeOutliers):
+    if not 'removeOutliers' in meta:
         meta['removeOutliers'] = removeOutliers
+    if removeOutliers is True or 'removeOutliers' in meta and meta['removeOutliers'] != str(removeOutliers):
         # indices below are the result of the code commented above
         indices_to_remove = [29,
                              1166,
@@ -240,6 +241,7 @@ def getRawData() -> list[torch.tensor, torch.tensor]:
 
 
 class CTRNormalize:
+    @staticmethod
     def cutoff(clicks: float, count: float, eps: float):
         count = max(count, eps)
         clicks = min(max(clicks, 0), count)
@@ -267,7 +269,7 @@ def setMeta(meta):
 
 
 def saveMeta(filename):
-    meta_file = open(prepared_dirpath + f"/{filename}", "w", newline='')
+    meta_file = open(prepared_dirpath + f"/{filename}.meta", "w", newline='')
     meta_writer = csv.writer(meta_file)
     meta = getMeta()
     for key in meta:
@@ -278,23 +280,15 @@ def saveMeta(filename):
 def prepareObservations(normalizeCTR: Callable, filterObservations: Callable = None, filename: str = 'observations', removeOutliers: bool = False, force: bool = False) -> None:
     prepareCriteoDataset(removeOutliers)
     observations_destination = prepared_dirpath + f"/{filename}.csv"
-    observations_meta_destination = prepared_dirpath + f"/{filename}_meta.csv"
-    if force or not os.path.exists(observations_destination) or not os.path.exists(observations_meta_destination):
+    if force or not os.path.exists(observations_destination):
         if os.path.exists(observations_destination):
             os.remove(observations_destination)
-        if os.path.exists(observations_meta_destination):
-            os.remove(observations_meta_destination)
         observations_single_source_file = open(observations_single_source)
         observations_source_file_single_reader = csv.reader(
             observations_single_source_file, delimiter=',')
         next(observations_source_file_single_reader, None)  # skip the headers
         observations_file = open(observations_destination, "w", newline='')
         observations_file_writer = csv.writer(observations_file, delimiter=';')
-        observations_meta_file = open(
-            observations_meta_destination, "w", newline='')
-        observations_meta_file_writer = csv.writer(
-            observations_meta_file, delimiter=';')
-        observation_index = 0
         entries = pd.read_csv(filepath)
         removedCount = 0
         for entry in tqdm(observations_source_file_single_reader):
@@ -308,12 +302,8 @@ def prepareObservations(normalizeCTR: Callable, filterObservations: Callable = N
                 if filterObservations is not None and not filterObservations(entry):
                     removedCount += 1
                     continue
-                observations_file_writer.writerow([ctr, 1-ctr])
-                observations_meta_file_writer.writerow(
-                    [entries_indices, observation_index])
-                observation_index += 1
+                observations_file_writer.writerow([entries_indices, ctr])
         observations_file.close()
-        observations_meta_file.close()
         observations_single_source_file.close()
         print(f"removed count {removedCount}")
     return
@@ -321,21 +311,15 @@ def prepareObservations(normalizeCTR: Callable, filterObservations: Callable = N
 
 def retrieveObservations(filename: str = 'observations') -> list[torch.tensor, list[Observation]]:
     observations_destination = prepared_dirpath + f"/{filename}.csv"
-    observations_meta_destination = prepared_dirpath + f"/{filename}_meta.csv"
     observations_file = open(observations_destination, 'r')
     observations_file_reader = csv.reader(observations_file, delimiter=';')
     obs_y = []
-    for entry in observations_file_reader:
-        one_prob, no_prob = entry
-        obs_y.append([float(one_prob), float(no_prob)])
-    obs_y = torch.tensor(np.array(obs_y))
-    observations_meta_file = open(observations_meta_destination, 'r')
-    observations_meta_file_reader = csv.reader(
-        observations_meta_file, delimiter=';')
     meta = []
-    for entry in observations_meta_file_reader:
-        entries_indices, value_vec_index = entry
-        value_vec_index = int(value_vec_index)
+    value_vec_index = 0
+    for entry in observations_file_reader:
+        entries_indices, one_prob = entry
+        one_prob = float(one_prob)
+        obs_y.append([one_prob, 1 - one_prob])
         entries_indices = entries_indices.replace(
             '[', '').replace(']', '').replace(' ', '')
         entries_indices = list(
@@ -343,6 +327,9 @@ def retrieveObservations(filename: str = 'observations') -> list[torch.tensor, l
         observation = Observation(
             entries_indices=entries_indices, value_vec_index=value_vec_index)
         meta.append(observation)
+        value_vec_index += 1
+    obs_y = torch.tensor(np.array(obs_y))
+    observations_file.close()
     return [obs_y, meta]
 
 
