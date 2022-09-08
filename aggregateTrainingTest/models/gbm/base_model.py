@@ -31,9 +31,8 @@ class Model:
         data_indices = list(
             chain(*[obs.entries_indices for obs in dataset.observations]))
 
-        data = dataset.data_x[data_indices].numpy()
-        labels = np.ascontiguousarray(
-            dataset.data_y[data_indices][:, 0].numpy())
+        data = np.array(dataset.data_x[data_indices])
+        labels = np.array(dataset.data_y[data_indices][:, 0])
         lengths = np.array([obs.length for obs in dataset.observations])
         return lgb.Dataset(data=data, label=labels, group=lengths)
 
