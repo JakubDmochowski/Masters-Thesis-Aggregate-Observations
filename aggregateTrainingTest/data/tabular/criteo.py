@@ -4,6 +4,7 @@ import numpy as np
 import os
 import pandas as pd
 import category_encoders as ce
+from typing import Callable
 import sys
 import csv
 from tqdm import tqdm
@@ -37,10 +38,9 @@ aggregated_noisy_pairs_filename = "/aggregated_noisy_data_pairs.csv"
 small_train_filename = "/small_train.csv"
 
 filepath = prepared_dirpath + small_train_filename
+meta_filepath = prepared_dirpath + f"/.meta"
 observations_single_source = raw_dirpath + aggregated_noisy_singles_filename
 observations_pairs_source = raw_dirpath + aggregated_noisy_pairs_filename
-observations_destination = prepared_dirpath + "/observations.csv"
-observations_meta_destination = prepared_dirpath + "/observations_meta.csv"
 
 CSV_COLUMNS = ["hash_0", "hash_1", "hash_2", "hash_3", "hash_4", "hash_5", "hash_6", "hash_7",
                "hash_8", "hash_9", "hash_10", "hash_11", "hash_12", "hash_13", "hash_14", "hash_15", "hash_16",
@@ -57,18 +57,25 @@ def downloadAggregatedPairs(raw_dirpath: str, force: bool = False):
         print('finished:', observations_pair_source)
 
 
-def downloadCriteo(raw_dirpath: str, force: bool = False):
-    print(
-        f"Criteo dataset available at URI: {MAIN_DATA_SOURCE}\nPlease download by hand\nUnzip files and put files [{small_train_filename} and {aggregated_noisy_singles_filename}] to directory \"{raw_dirpath}\"")
+def downloadCriteo(raw_dirpath: str):
+    if os.path.exists(raw_dirpath):
+        files = [f for f in os.listdir(
+            raw_dirpath) if os.path.isfile(os.path.join(raw_dirpath, f))]
+        if 'small_train.csv' in files and 'aggregated_noisy_data_singles.csv' in files:
+            return
+    else:
+        print(
+            f"Criteo dataset available at URI: {MAIN_DATA_SOURCE}\nPlease download by hand\nUnzip files and put files [{small_train_filename} and {aggregated_noisy_singles_filename}] to directory \"{raw_dirpath}\"")
 
 
-def downloadCriteoDataset(raw_dirpath: str, force: bool = False) -> None:
-    downloadCriteo(raw_dirpath, force)
-    downloadAggregatedPairs(raw_dirpath, force)
+def downloadCriteoDataset(raw_dirpath: str) -> None:
+    downloadCriteo(raw_dirpath)
+    downloadAggregatedPairs(raw_dirpath)
 
 
-def validateDataset() -> None:
+def validateDataset(filename: str = 'observations') -> None:
     small_train = pd.read_csv(filepath)
+    observations_meta_destination = prepared_dirpath + f"/{filename}_meta.csv"
     observations_meta_file = open(observations_meta_destination)
     observations_meta = csv.reader(observations_meta_file, delimiter=";")
 
@@ -98,7 +105,7 @@ def validateDataset() -> None:
     # print(indices_to_remove)
 
 
-def prepareCriteoDataset(force: bool = False) -> None:
+def prepareCriteoDataset(removeOutliers: bool = False) -> None:
     if not os.path.exists(criteo_dirpath):
         os.makedirs(criteo_dirpath)
     if not os.path.exists(prepared_dirpath):
@@ -106,11 +113,12 @@ def prepareCriteoDataset(force: bool = False) -> None:
     if not os.path.exists(raw_dirpath):
         os.makedirs(raw_dirpath)
     downloadCriteoDataset(raw_dirpath)
-    if force or not os.path.exists(filepath) or not os.path.exists(observations_single_source):
-        if os.path.exists(filepath):
-            os.remove(filepath)
-        if os.path.exists(observations_single_source):
-            os.remove(observations_single_source)
+    small_train_raw_filepath = raw_dirpath + "/small_train.csv"
+    small_train_prepared_filepath = prepared_dirpath + "/small_train.csv"
+    small_train = pd.read_csv(small_train_raw_filepath)
+    meta = getMeta()
+    if not 'removeOutliers' in meta or 'removeOutliers' in meta and meta['removeOutliers'] != str(removeOutliers):
+        meta['removeOutliers'] = removeOutliers
         # indices below are the result of the code commented above
         indices_to_remove = [29,
                              1166,
@@ -207,12 +215,9 @@ def prepareCriteoDataset(force: bool = False) -> None:
                              100993,
                              101999,
                              102131]
-        small_train_raw_filepath = raw_dirpath + "/small_train.csv"
-        small_train_prepared_filepath = prepared_dirpath + "/small_train.csv"
-        small_train = pd.read_csv(small_train_raw_filepath)
-
         small_train.drop(index=indices_to_remove, inplace=True)
-        small_train.to_csv(small_train_prepared_filepath, index=False)
+    small_train.to_csv(small_train_prepared_filepath, index=False)
+    setMeta(meta)
 
 
 def encodeX(entries: pd.DataFrame) -> torch.tensor:
@@ -234,27 +239,54 @@ def getRawData() -> list[torch.tensor, torch.tensor]:
     return [data_x, data_y]
 
 
-def getNormalizedCTR(clicks: float, counts: float, eps: float, type: str = 'cutoff') -> float:
-    if type == 'cutoff':
-        counts = max(counts, eps)
-        clicks = min(max(clicks, 0), counts)
-        return clicks / counts
-    else:
-        availableTypes = ['cutoff', 'mirror', 'resample', 'shift', 'resize']
-        raise ValueError(
-            f"Criteo getNormalizedCTR - type argument error: passed value {type}, expected to be one of {availableTypes}")
+class CTRNormalize:
+    def cutoff(clicks: float, count: float, eps: float):
+        count = max(count, eps)
+        clicks = min(max(clicks, 0), count)
+        return clicks / count
 
 
-def prepareObservations(force: bool = False, ctr_norm: str = 'cutoff') -> None:
-    prepareCriteoDataset(force)
+def getMeta():
+    if not os.path.exists(meta_filepath):
+        return {}
+    meta_file = open(meta_filepath, "r")
+    meta_reader = csv.reader(meta_file)
+    meta = {}
+    for entry in meta_reader:
+        key, value = entry
+        meta[key] = value
+    return meta
+
+
+def setMeta(meta):
+    meta_file = open(meta_filepath, "w", newline='')
+    meta_writer = csv.writer(meta_file)
+    for key in meta:
+        meta_writer.writerow([key, meta[key]])
+    meta_file.close()
+
+
+def saveMeta(filename):
+    meta_file = open(prepared_dirpath + f"/{filename}", "w", newline='')
+    meta_writer = csv.writer(meta_file)
+    meta = getMeta()
+    for key in meta:
+        meta_writer.writerow([key, meta[key]])
+    meta_file.close()
+
+
+def prepareObservations(normalizeCTR: Callable, filterObservations: Callable = None, filename: str = 'observations', removeOutliers: bool = False, force: bool = False) -> None:
+    prepareCriteoDataset(removeOutliers)
+    observations_destination = prepared_dirpath + f"/{filename}.csv"
+    observations_meta_destination = prepared_dirpath + f"/{filename}_meta.csv"
     if force or not os.path.exists(observations_destination) or not os.path.exists(observations_meta_destination):
         if os.path.exists(observations_destination):
             os.remove(observations_destination)
         if os.path.exists(observations_meta_destination):
             os.remove(observations_meta_destination)
-        observations_sour_singlece_file = open(observations_single_source)
+        observations_single_source_file = open(observations_single_source)
         observations_source_file_single_reader = csv.reader(
-            observations_sour_singlece_file, delimiter=',')
+            observations_single_source_file, delimiter=',')
         next(observations_source_file_single_reader, None)  # skip the headers
         observations_file = open(observations_destination, "w", newline='')
         observations_file_writer = csv.writer(observations_file, delimiter=';')
@@ -264,24 +296,32 @@ def prepareObservations(force: bool = False, ctr_norm: str = 'cutoff') -> None:
             observations_meta_file, delimiter=';')
         observation_index = 0
         entries = pd.read_csv(filepath)
+        removedCount = 0
         for entry in tqdm(observations_source_file_single_reader):
             feature_value, feature_id, count, clicks, sales = entry
             # ctr may be negative and bigger than 1 -> should normalize
-            ctr = getNormalizedCTR(float(clicks), float(count), EPS, ctr_norm)
+            ctr = normalizeCTR(float(clicks), float(count), EPS)
             entries_indices = list(
                 np.where(entries[f"hash_{int(feature_id)}"] == int(feature_value))[0])
+
             if len(entries_indices):
+                if filterObservations is not None and not filterObservations(entry):
+                    removedCount += 1
+                    continue
                 observations_file_writer.writerow([ctr, 1-ctr])
                 observations_meta_file_writer.writerow(
                     [entries_indices, observation_index])
                 observation_index += 1
         observations_file.close()
         observations_meta_file.close()
-        observations_sour_singlece_file.close()
+        observations_single_source_file.close()
+        print(f"removed count {removedCount}")
     return
 
 
-def retrieveObservations() -> list[torch.tensor, list[Observation]]:
+def retrieveObservations(filename: str = 'observations') -> list[torch.tensor, list[Observation]]:
+    observations_destination = prepared_dirpath + f"/{filename}.csv"
+    observations_meta_destination = prepared_dirpath + f"/{filename}_meta.csv"
     observations_file = open(observations_destination, 'r')
     observations_file_reader = csv.reader(observations_file, delimiter=';')
     obs_y = []
@@ -306,16 +346,16 @@ def retrieveObservations() -> list[torch.tensor, list[Observation]]:
     return [obs_y, meta]
 
 
-def getObservations() -> list[torch.tensor, list[Observation]]:
-    prepareObservations()
-    return retrieveObservations()
+def getObservations(filename: str = 'observations') -> list[torch.tensor, list[Observation]]:
+    prepareObservations(filename)
+    return retrieveObservations(filename)
 
 
-def retrieveData() -> list[torch.tensor, torch.tensor, torch.tensor, list[Observation]]:
+def retrieveData(filename: str = 'observations') -> list[torch.tensor, torch.tensor, torch.tensor, list[Observation]]:
     data_x, data_y = getRawData()
     data_x = encodeX(data_x)
     data_y = encodeY(data_y)
-    obs_y, meta = getObservations()
+    obs_y, meta = getObservations(filename)
     return [data_x, data_y, obs_y, meta]
 
 
