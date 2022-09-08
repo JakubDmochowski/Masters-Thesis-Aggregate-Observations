@@ -108,7 +108,7 @@ def plotRecall(models, targets, every):
     fig.show()
 
 
-def plotConfusionMatrix(models, targets, every):
+def plotConfusionMatrix(models, targets):
     for model in models:
         fig, ax = plt.subplots(figsize=PLOTSIZE_SM)
         predictions = model["prediction_history"][len(

@@ -9,7 +9,6 @@ import torch
 from torch import optim
 from tqdm import trange
 from plot_utils import plotXY, plotLosses, plotAUC, plotPrecision, plotRecall, plotConfusionMatrix
-from sklearn import svm
 
 RANDOM_SEED = 2022
 
@@ -72,7 +71,7 @@ data_train = Dataset(data_x=data_x, data_y=data_y,
 data_test = Dataset(data_x=data_x, data_y=data_y,
                     obs_y=obs_y, observations=meta_test)
 data_validate = Dataset(
-    data_x=data_x, data_y=expected_y, obs_y=obs_y, observations=meta_test)
+    data_x=data_x, data_y=expected_y, obs_y=obs_y, observations=meta_validate)
 
 
 layers_raw = [{'nodes': 32, 'nlin': torch.nn.ReLU(inplace=True), 'norm': False, 'bias': True, 'drop': False},
@@ -142,20 +141,7 @@ if USE_TABULAR_DATA is False:
     ]
     plotXY(data_x=data_x, expected_y=expected_y,
            series=series, value_func=valFunc)
-else:
-    # SVM baseline algorithm
-    # x_train = observationSubsetFor(data=data_x, dataset=data_train)
-    # y_train = observationSubsetFor(data=expected_y, dataset=data_train)
-    # x_test = observationSubsetFor(data=data_x, dataset=data_test)
-    # y_test = observationSubsetFor(data=expected_y, dataset=data_test)
-    # clf = svm.SVC(kernel='linear', degree=2)
-    # clf.fit(x_train, y_train[:, 0])
-    # y_pred = clf.predict(x_test)
-    # plotROC(y_test[:, 0], y_pred, "SVM ROC")
-    # SVM end
-    # plotROC(targets, aggregate_predictions, "aggregate ROC")
-    # plotROC(targets, standard_predictions, "standard ROC")
-    targets = observationSubsetFor(data=expected_y, dataset=data_validate)
+else:targets = observationSubsetFor(data=expected_y, dataset=data_validate)
     prediction_data = [
         {
             "label": 'standard model',
@@ -172,7 +158,6 @@ else:
                   every=VALIDATE_EVERY_K_ITERATIONS)
     plotRecall(prediction_data, targets,
                every=VALIDATE_EVERY_K_ITERATIONS)
-    plotConfusionMatrix(prediction_data, targets,
-                        every=VALIDATE_EVERY_K_ITERATIONS)
+    plotConfusionMatrix(prediction_data, targets)
 
 input("Press Enter to continue...")

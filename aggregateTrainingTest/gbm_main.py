@@ -40,7 +40,8 @@ data_train = Dataset(data_x=data_x, data_y=data_y,
 data_test = Dataset(data_x=data_x, data_y=data_y,
                     obs_y=obs_y, observations=meta_test)
 data_validate = Dataset(
-    data_x=data_x, data_y=expected_y, obs_y=obs_y, observations=meta_test)
+    data_x=data_x, data_y=expected_y, obs_y=obs_y, observations=meta_validate)
+
 
 aggregate_model = AggregateModel()
 standard_model = StandardModel()
@@ -66,8 +67,7 @@ prediction_data = [
         "prediction_history": [torch.Tensor([[e, 1-e] for e in standard_predictions])],
     }
 ]
-plotConfusionMatrix(prediction_data, targets,
-                    every=VALIDATE_EVERY_K_ITERATIONS)
+plotConfusionMatrix(prediction_data, targets)
 
 
 input("Press Enter to continue...")
