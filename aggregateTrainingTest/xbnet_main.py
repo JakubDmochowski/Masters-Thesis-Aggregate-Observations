@@ -141,7 +141,8 @@ if USE_TABULAR_DATA is False:
     ]
     plotXY(data_x=data_x, expected_y=expected_y,
            series=series, value_func=valFunc)
-else:targets = observationSubsetFor(data=expected_y, dataset=data_validate)
+else:
+    targets = observationSubsetFor(data=expected_y, dataset=data_validate)
     prediction_data = [
         {
             "label": 'standard model',
