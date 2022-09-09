@@ -17,11 +17,20 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 # global variables
 VALIDATION_SPLIT = 0.2
 TEST_SPLIT = 0.1
-VALIDATE_EVERY_K_ITERATIONS = 5
-USE_TABULAR_DATA = True
-LOSS = torch.nn.functional.mse_loss
-USE_WEIGHT = True
-CLASSIFICATION = USE_TABULAR_DATA
+TRAIN_PARAMS = {
+    "num_boost_round": 100,
+    "early_stopping_rounds": 10,
+}
+
+MODEL_TYPE = "gbm"
+# LOAD_MODEL = f"{MODEL_TYPE}_2022-08-09"
+MODEL_DATE = "2022-09-09"
+MODEL_INDEX = "0"
+LOAD = False
+LOAD_MODEL = f"{MODEL_DATE}_{MODEL_INDEX}" if LOAD else None
+
+STANDARD_MODEL_KEY = "std"
+AGGREGATE_MODEL_KEY = "agg"
 
 data_x = None
 data_y = None
@@ -43,13 +52,18 @@ data_validate = Dataset(
     data_x=data_x, data_y=expected_y, obs_y=obs_y, observations=meta_validate)
 
 
-aggregate_model = AggregateModel()
-standard_model = StandardModel()
-
-# data_train.useDevice(device)
-# data_validate.useDevice(device)
-aggregate_model.train(dataset=data_train, validate=data_validate)
-standard_model.train(dataset=data_train, validate=data_validate)
+aggregate_model = AggregateModel(train_params=TRAIN_PARAMS)
+standard_model = StandardModel(train_params=TRAIN_PARAMS)
+if LOAD_MODEL is not None:
+    aggregate_model.load(MODEL_TYPE, LOAD_MODEL, AGGREGATE_MODEL_KEY)
+    standard_model.load(MODEL_TYPE, LOAD_MODEL, STANDARD_MODEL_KEY)
+else:
+    # data_train.useDevice(device)
+    # data_validate.useDevice(device)
+    aggregate_model.train(dataset=data_train, validate=data_validate)
+    standard_model.train(dataset=data_train, validate=data_validate)
+    aggregate_model.save(MODEL_TYPE, AGGREGATE_MODEL_KEY)
+    standard_model.save(MODEL_TYPE, STANDARD_MODEL_KEY)
 
 data_x_a, aggregate_predictions = aggregate_model.test(
     dataset=data_test)

@@ -2,6 +2,11 @@ from data.dataset import Dataset
 from itertools import chain
 import lightgbm as lgb
 import numpy as np
+import csv
+import os
+from data.tabular.criteo import getMeta
+from datetime import date
+import re
 
 
 class Model:
@@ -47,3 +52,34 @@ class Model:
             chain(*[obs.entries_indices for obs in dataset.observations]))
         x = dataset.data_x[data_x_indices]
         return [x, self.model(x)]
+
+    def save(self, model_type: str, model_key: str) -> None:
+        savedir = f"models/{model_type}/saved"
+        if not os.path.isdir(savedir):
+            os.mkdir(savedir)
+        # filename = f"{date.today()}"
+        today = date.today()
+        files = [f for f in os.listdir(
+            savedir) if os.path.isfile(os.path.join(savedir, f))]
+        regex = f"^{today}_([0-9]+)_[A-Z]+$"
+        idx = [int(re.search(regex, f).group(1)) for f in files if re.search(
+            regex, f)]
+        index = max([*idx, 0])
+        basename = f"{today}_{index}"
+        filename = f"{basename}_{model_key}"
+        self.gbm.save_model(f"{savedir}/{filename}",
+                            num_iteration=self.gbm.best_iteration)
+
+        meta_filename = f"{basename}.meta"
+        if not os.path.exists(meta_filename):
+            meta = self.lgb_params | self.train_params | getMeta()
+            meta_file = open(f"{savedir}/{meta_filename}", "w", newline='')
+            meta_file_writer = csv.writer(meta_file)
+            for entry in meta:
+                meta_file_writer.writerow([entry, meta[entry]])
+            meta_file.close()
+
+    def load(self, model_type: str, load_filename, model_key: str) -> None:
+        savedir = f"models/{model_type}/saved"
+        filename = savedir + "/" + load_filename + f"_{model_key}"
+        self.gbm = lgb.Booster(model_file=filename)
