@@ -277,35 +277,70 @@ def saveMeta(filename):
     meta_file.close()
 
 
-def prepareObservations(normalizeCTR: Callable, filterObservations: Callable = None, filename: str = 'observations', removeOutliers: bool = False, force: bool = False) -> None:
+def _count_generator(reader):
+    b = reader(1024 * 1024)
+    while b:
+        yield b
+        b = reader(1024 * 1024)
+
+
+def prepareObservations(normalizeCTR: Callable, minCount: float = None, filename: str = 'observations', removeOutliers: bool = False, withPairs: bool = False, force: bool = False) -> None:
     prepareCriteoDataset(removeOutliers)
     observations_destination = prepared_dirpath + f"/{filename}.csv"
     if force or not os.path.exists(observations_destination):
         if os.path.exists(observations_destination):
             os.remove(observations_destination)
         observations_single_source_file = open(observations_single_source)
+        with open(observations_single_source, 'rb') as file:
+            s_c_generator = _count_generator(file.raw.read)
+            single_count = sum(buffer.count(b'\n') for buffer in s_c_generator)
         observations_source_file_single_reader = csv.reader(
             observations_single_source_file, delimiter=',')
         next(observations_source_file_single_reader, None)  # skip the headers
         observations_file = open(observations_destination, "w", newline='')
         observations_file_writer = csv.writer(observations_file, delimiter=';')
         entries = pd.read_csv(filepath)
-        removedCount = 0
-        for entry in tqdm(observations_source_file_single_reader):
+        removedCountSingle = 0
+        for entry in tqdm(observations_source_file_single_reader, total=single_count):
             feature_value, feature_id, count, clicks, sales = entry
-            # ctr may be negative and bigger than 1 -> should normalize
             ctr = normalizeCTR(float(clicks), float(count), EPS)
             entries_indices = list(
                 np.where(entries[f"hash_{int(feature_id)}"] == int(feature_value))[0])
 
             if len(entries_indices):
-                if filterObservations is not None and not filterObservations(entry):
-                    removedCount += 1
+                if minCount is not None and float(count) < minCount:
+                    removedCountSingle += 1
                     continue
                 observations_file_writer.writerow([entries_indices, ctr])
+        print(f"single-observation removed count {removedCountSingle}")
+        removedCountPairs = 0
+        if withPairs:
+            observations_pairs_source_file = open(observations_pairs_source)
+            with open(observations_pairs_source, 'rb') as file:
+                p_c_generator = _count_generator(file.raw.read)
+                pairs_count = sum(buffer.count(b'\n')
+                                  for buffer in p_c_generator)
+            observations_source_file_pairs_reader = csv.reader(
+                observations_pairs_source_file, delimiter=',')
+            next(observations_source_file_pairs_reader, None)  # skip the headers
+            for entry in tqdm(observations_source_file_pairs_reader, total=pairs_count):
+                feature_1_value, feature_2_value, feature_1_id, feature_2_id, count, clicks, sales = entry
+                ctr = normalizeCTR(float(clicks), float(count), EPS)
+                entries_indices = list(
+                    np.where((entries[f"hash_{int(feature_1_id)}"] == int(feature_1_value)) & (entries[f"hash_{int(feature_2_id)}"] == int(feature_2_value)))[0])
+                if len(entries_indices):
+                    if minCount is not None and float(count) < minCount:
+                        removedCountPairs += 1
+                        continue
+                    observations_file_writer.writerow([entries_indices, ctr])
+            print(f"pairs-observation removed count {removedCountPairs}")
+            observations_pairs_source_file.close()
         observations_file.close()
         observations_single_source_file.close()
-        print(f"removed count {removedCount}")
+        meta = getMeta()
+        meta["withPairs"] = withPairs
+        meta["minCount"] = minCount
+        setMeta(meta)
     return
 
 
