@@ -34,13 +34,13 @@ prepared_dirpath = criteo_dirpath + "/prepared"
 raw_dirpath = criteo_dirpath + "/raw"
 
 aggregated_noisy_singles_filename = "/aggregated_noisy_data_singles.csv"
+relevant_aggregated_noisy_singles_filename = "/relevant_aggregated_noisy_data_singles.csv"
 aggregated_noisy_pairs_filename = "/aggregated_noisy_data_pairs.csv"
+relevant_aggregated_noisy_pairs_filename = "/relevant_aggregated_noisy_data_pairs.csv"
 small_train_filename = "/small_train.csv"
 
 filepath = prepared_dirpath + small_train_filename
 meta_filepath = prepared_dirpath + f"/.meta"
-observations_single_source = raw_dirpath + aggregated_noisy_singles_filename
-observations_pairs_source = raw_dirpath + aggregated_noisy_pairs_filename
 
 CSV_COLUMNS = ["hash_0", "hash_1", "hash_2", "hash_3", "hash_4", "hash_5", "hash_6", "hash_7",
                "hash_8", "hash_9", "hash_10", "hash_11", "hash_12", "hash_13", "hash_14", "hash_15", "hash_16",
@@ -247,6 +247,11 @@ class CTRNormalize:
         clicks = min(max(clicks, 0), count)
         return clicks / count
 
+    @staticmethod
+    def smoothing(clicks: float, count: float, eps: float):
+        ctr = clicks / count
+        return (ctr * count + prior_weight * prior) / (count + prior_weight)
+
 
 def getMeta():
     if not os.path.exists(meta_filepath):
@@ -284,64 +289,121 @@ def _count_generator(reader):
         b = reader(1024 * 1024)
 
 
+def prepareRelevantAggregates(removeOutliers, withPairs):
+    meta = getMeta()
+    if "withPairs" in meta and "removeOutliers" in meta and meta["withPairs"] == str(withPairs) and meta["removeOutliers"] == str(removeOutliers):
+        return
+    entries = pd.read_csv(filepath)
+    observations_singles_source = raw_dirpath + aggregated_noisy_singles_filename
+    relevant_singles_dest = prepared_dirpath + \
+        relevant_aggregated_noisy_singles_filename
+    if os.path.exists(relevant_singles_dest):
+        os.remove(relevant_singles_dest)
+    observations_singles_source_file = open(observations_singles_source)
+    relevant_singles_file = open(relevant_singles_dest, "w", newline='')
+    relevant_singles_writer = csv.writer(relevant_singles_file)
+    observations_source_file_singles_reader = csv.reader(
+        observations_singles_source_file, delimiter=',')
+    next(observations_source_file_singles_reader, None)  # skip the headers
+    with open(observations_singles_source, 'rb') as file:
+        s_c_generator = _count_generator(file.raw.read)
+        singles_count = sum(buffer.count(b'\n') for buffer in s_c_generator)
+    next(observations_source_file_singles_reader, None)  # skip the headers
+    for entry in tqdm(observations_source_file_singles_reader, total=singles_count):
+        feature_value, feature_id, count, clicks, sales = entry
+        entries_indices = list(
+            np.where(entries[f"hash_{int(feature_id)}"] == int(feature_value))[0])
+        if len(entries_indices):
+            relevant_singles_writer.writerow(entry)
+    observations_singles_source_file.close()
+    relevant_singles_file.close()
+    if withPairs:
+        relevant_pairs_dest = prepared_dirpath + \
+            relevant_aggregated_noisy_pairs_filename
+        if os.path.exists(relevant_pairs_dest):
+            os.remove(relevant_pairs_dest)
+        observations_pairs_source = raw_dirpath + aggregated_noisy_pairs_filename
+        observations_pairs_source_file = open(observations_pairs_source)
+        relevant_pairs_file = open(relevant_pairs_dest, "w", newline='')
+        relevant_pairs_writer = csv.writer(relevant_pairs_file)
+        observations_source_file_pairs_reader = csv.reader(
+            observations_pairs_source_file, delimiter=',')
+        next(observations_source_file_pairs_reader, None)  # skip the headers
+        with open(observations_pairs_source, 'rb') as file:
+            s_c_generator = _count_generator(file.raw.read)
+            pairs_count = sum(buffer.count(b'\n') for buffer in s_c_generator)
+
+        for entry in tqdm(observations_source_file_pairs_reader, total=pairs_count):
+            feature_1_value, feature_2_value, feature_1_id, feature_2_id, count, clicks, sales = entry
+            entries_indices = list(
+                np.where((entries[f"hash_{int(feature_1_id)}"] == int(feature_1_value)) & (entries[f"hash_{int(feature_2_id)}"] == int(feature_2_value)))[0])
+            if len(entries_indices):
+                relevant_pairs_writer.writerow(entry)
+        observations_pairs_source_file.close()
+        relevant_pairs_file.close()
+
+
 def prepareObservations(normalizeCTR: Callable, minCount: float = None, filename: str = 'observations', removeOutliers: bool = False, withPairs: bool = False, force: bool = False) -> None:
     prepareCriteoDataset(removeOutliers)
+    prepareRelevantAggregates(removeOutliers, withPairs)
+    observations_single_source = prepared_dirpath + \
+        relevant_aggregated_noisy_singles_filename
+    observations_pairs_source = prepared_dirpath + \
+        relevant_aggregated_noisy_pairs_filename
     observations_destination = prepared_dirpath + f"/{filename}.csv"
-    if force or not os.path.exists(observations_destination):
-        if os.path.exists(observations_destination):
-            os.remove(observations_destination)
-        observations_single_source_file = open(observations_single_source)
-        with open(observations_single_source, 'rb') as file:
-            s_c_generator = _count_generator(file.raw.read)
-            single_count = sum(buffer.count(b'\n') for buffer in s_c_generator)
-        observations_source_file_single_reader = csv.reader(
-            observations_single_source_file, delimiter=',')
-        next(observations_source_file_single_reader, None)  # skip the headers
-        observations_file = open(observations_destination, "w", newline='')
-        observations_file_writer = csv.writer(observations_file, delimiter=';')
-        entries = pd.read_csv(filepath)
-        removedCountSingle = 0
-        for entry in tqdm(observations_source_file_single_reader, total=single_count):
-            feature_value, feature_id, count, clicks, sales = entry
+    if not force and not os.path.exists(observations_destination):
+        return
+    if os.path.exists(observations_destination):
+        os.remove(observations_destination)
+    observations_single_source_file = open(observations_single_source)
+    with open(observations_single_source, 'rb') as file:
+        s_c_generator = _count_generator(file.raw.read)
+        single_count = sum(buffer.count(b'\n') for buffer in s_c_generator)
+    observations_source_file_single_reader = csv.reader(
+        observations_single_source_file, delimiter=',')
+    observations_file = open(observations_destination, "w", newline='')
+    observations_file_writer = csv.writer(observations_file, delimiter=';')
+    entries = pd.read_csv(filepath)
+    removedCountSingle = 0
+    for entry in tqdm(observations_source_file_single_reader, total=single_count):
+        feature_value, feature_id, count, clicks, sales = entry
+        ctr = normalizeCTR(float(clicks), float(count), EPS)
+        entries_indices = list(
+            np.where(entries[f"hash_{int(feature_id)}"] == int(feature_value))[0])
+
+        if len(entries_indices):
+            if minCount is not None and float(count) < minCount:
+                removedCountSingle += 1
+                continue
+            observations_file_writer.writerow([entries_indices, ctr])
+    print(f"single-observation removed count {removedCountSingle}")
+    removedCountPairs = 0
+    if withPairs:
+        observations_pairs_source_file = open(observations_pairs_source)
+        with open(observations_pairs_source, 'rb') as file:
+            p_c_generator = _count_generator(file.raw.read)
+            pairs_count = sum(buffer.count(b'\n')
+                              for buffer in p_c_generator)
+        observations_source_file_pairs_reader = csv.reader(
+            observations_pairs_source_file, delimiter=',')
+        for entry in tqdm(observations_source_file_pairs_reader, total=pairs_count):
+            feature_1_value, feature_2_value, feature_1_id, feature_2_id, count, clicks, sales = entry
             ctr = normalizeCTR(float(clicks), float(count), EPS)
             entries_indices = list(
-                np.where(entries[f"hash_{int(feature_id)}"] == int(feature_value))[0])
-
+                np.where((entries[f"hash_{int(feature_1_id)}"] == int(feature_1_value)) & (entries[f"hash_{int(feature_2_id)}"] == int(feature_2_value)))[0])
             if len(entries_indices):
                 if minCount is not None and float(count) < minCount:
-                    removedCountSingle += 1
+                    removedCountPairs += 1
                     continue
                 observations_file_writer.writerow([entries_indices, ctr])
-        print(f"single-observation removed count {removedCountSingle}")
-        removedCountPairs = 0
-        if withPairs:
-            observations_pairs_source_file = open(observations_pairs_source)
-            with open(observations_pairs_source, 'rb') as file:
-                p_c_generator = _count_generator(file.raw.read)
-                pairs_count = sum(buffer.count(b'\n')
-                                  for buffer in p_c_generator)
-            observations_source_file_pairs_reader = csv.reader(
-                observations_pairs_source_file, delimiter=',')
-            next(observations_source_file_pairs_reader, None)  # skip the headers
-            for entry in tqdm(observations_source_file_pairs_reader, total=pairs_count):
-                feature_1_value, feature_2_value, feature_1_id, feature_2_id, count, clicks, sales = entry
-                ctr = normalizeCTR(float(clicks), float(count), EPS)
-                entries_indices = list(
-                    np.where((entries[f"hash_{int(feature_1_id)}"] == int(feature_1_value)) & (entries[f"hash_{int(feature_2_id)}"] == int(feature_2_value)))[0])
-                if len(entries_indices):
-                    if minCount is not None and float(count) < minCount:
-                        removedCountPairs += 1
-                        continue
-                    observations_file_writer.writerow([entries_indices, ctr])
-            print(f"pairs-observation removed count {removedCountPairs}")
-            observations_pairs_source_file.close()
-        observations_file.close()
-        observations_single_source_file.close()
-        meta = getMeta()
-        meta["withPairs"] = withPairs
-        meta["minCount"] = minCount
-        setMeta(meta)
-    return
+        print(f"pairs-observation removed count {removedCountPairs}")
+        observations_pairs_source_file.close()
+    observations_file.close()
+    observations_single_source_file.close()
+    meta = getMeta()
+    meta["withPairs"] = withPairs
+    meta["minCount"] = minCount
+    setMeta(meta)
 
 
 def retrieveObservations(filename: str = 'observations') -> list[torch.tensor, list[Observation]]:
