@@ -12,8 +12,6 @@ RANDOM_SEED = 2022
 np.random.seed(RANDOM_SEED)
 torch.manual_seed(RANDOM_SEED)
 
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-
 # global variables
 VALIDATION_SPLIT = 0.2
 TEST_SPLIT = 0.1
@@ -58,8 +56,6 @@ if LOAD_MODEL is not None:
     aggregate_model.load(MODEL_TYPE, LOAD_MODEL, AGGREGATE_MODEL_KEY)
     standard_model.load(MODEL_TYPE, LOAD_MODEL, STANDARD_MODEL_KEY)
 else:
-    # data_train.useDevice(device)
-    # data_validate.useDevice(device)
     aggregate_model.train(dataset=data_train, validate=data_validate)
     standard_model.train(dataset=data_train, validate=data_validate)
     aggregate_model.save(MODEL_TYPE, AGGREGATE_MODEL_KEY)

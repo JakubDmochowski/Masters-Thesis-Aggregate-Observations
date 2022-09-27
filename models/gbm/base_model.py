@@ -27,7 +27,7 @@ class Model:
 
         self.lgb_params = default_lgb_params | params
         default_train_params = {
-            "num_boost_round": 500,
+            "num_boost_round": 50000,
             "early_stopping_rounds": 100,
         }
         self.train_params = default_train_params | train_params

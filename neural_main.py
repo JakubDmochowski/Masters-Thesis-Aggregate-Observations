@@ -18,11 +18,11 @@ torch.manual_seed(RANDOM_SEED)
 # global variables
 NUM_OBSERVATIONS = 50
 BATCH_SIZE = 32
-NUM_ITERS = 500
+NUM_ITERS = 2500
 VALIDATION_SPLIT = 0.2
 TEST_SPLIT = 0.1
 VALIDATE_EVERY_K_ITERATIONS = 5
-USE_TABULAR_DATA = True
+USE_TABULAR_DATA = False
 LOSS = torch.nn.functional.mse_loss
 USE_WEIGHT = True
 if USE_TABULAR_DATA is True:
@@ -52,7 +52,7 @@ if USE_TABULAR_DATA:
 else:
     def valFunc(x: list[float]) -> np.ndarray:
         # returns array of y values. each y value is a function f(y_i) = (x_1, ..., x_n)
-        val = np.array([np.sum(dim*dim) for dim in x])
+        val = np.array([dim % 4 - (dim / 4) for dim in x])
         return val
 
     data_x, data_y, obs_y, meta = generateData(entry_no=NUM_ENTRIES,

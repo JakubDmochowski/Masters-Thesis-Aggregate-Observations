@@ -22,6 +22,10 @@ class Dataset:
         self.obs_y = obs_y
         self.observations = observations
 
+    def __str__(self):
+        return f"data_x(shape): {self.data_x.shape} || data_y(shape): {self.data_y.shape} || obs_y(shape): {self.obs_y.shape} || observations(len): {len(self.observations)}"
+
+    @staticmethod
     def validate(dataset) -> bool:
         if (dataset == None):
             raise ValueError("Model: No dataset provided")
@@ -32,15 +36,3 @@ class Dataset:
         if (len(dataset.observations) == 0):
             raise ValueError("Model: No observations in dataset")
         return True
-
-    def useDevice(self, device=None) -> None:
-        if device is not None:
-            self.data_x = self.data_x.to(device)
-            self.data_y = self.data_y.to(device)
-            self.obs_y = self.obs_y.to(device)
-
-    def __str__(self):
-        return f"data_x(shape): {self.data_x.shape} || data_y(shape): {self.data_y.shape} || obs_y(shape): {self.obs_y.shape} || observations(len): {len(self.observations)}"
-
-
-Dataset.validate = staticmethod(Dataset.validate)
