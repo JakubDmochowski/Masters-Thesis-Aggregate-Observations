@@ -1,8 +1,8 @@
-torch~=1.11.0
-matplotlib~=3.5.2
-numpy~=1.22.4
-tqdm~=4.64.0
+torch==1.12.1
+matplotlib==3.6.0
+numpy==1.23.3
+tqdm==4.64.1
 sklearn
-pandas~=1.4.2
+pandas==1.5.0
 category_encoders~=2.5.0
-lightgbm~=3.2.1
+lightgbm==3.3.2
