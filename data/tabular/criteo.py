@@ -47,7 +47,7 @@ CSV_COLUMNS = ["hash_0", "hash_1", "hash_2", "hash_3", "hash_4", "hash_5", "hash
                "hash_17", "hash_18", "click", "sale"]
 
 
-def downloadAggregatedPairs(raw_dirpath: str, force: bool = False):
+def download_aggregated_pairs(raw_dirpath: str):
     observations_pair_source = raw_dirpath + aggregated_noisy_pairs_filename
     if not os.path.exists(observations_pair_source):
         print("downloading additional data...", end='')
@@ -57,7 +57,7 @@ def downloadAggregatedPairs(raw_dirpath: str, force: bool = False):
         print('finished:', observations_pair_source)
 
 
-def downloadCriteo(raw_dirpath: str):
+def download_criteo(raw_dirpath: str):
     if os.path.exists(raw_dirpath):
         files = [f for f in os.listdir(
             raw_dirpath) if os.path.isfile(os.path.join(raw_dirpath, f))]
@@ -68,26 +68,26 @@ def downloadCriteo(raw_dirpath: str):
             f"Criteo dataset available at URI: {MAIN_DATA_SOURCE}\nPlease download by hand\nUnzip files and put files [{small_train_filename} and {aggregated_noisy_singles_filename}] to directory \"{raw_dirpath}\"")
 
 
-def downloadCriteoDataset(raw_dirpath: str) -> None:
-    downloadCriteo(raw_dirpath)
-    downloadAggregatedPairs(raw_dirpath)
+def download_criteo_dataset(raw_dirpath: str) -> None:
+    download_criteo(raw_dirpath)
+    download_aggregated_pairs(raw_dirpath)
 
 
-def validateDataset(filename: str = 'observations') -> None:
+def validate_dataset(filename: str = 'observations') -> None:
     small_train = pd.read_csv(filepath)
     observations_meta_destination = prepared_dirpath + f"/{filename}_meta.csv"
     observations_meta_file = open(observations_meta_destination)
     observations_meta = csv.reader(observations_meta_file, delimiter=";")
 
-    occurances = np.zeros(len(small_train))
+    occurrences = np.zeros(len(small_train))
     for observation in observations_meta:
         entries_indices = [int(x)
                            for x in re.sub(r'\[|\]|\s', '', observation[0])]
         for index in entries_indices:
-            occurances[index] += 1
+            occurrences[index] += 1
 
     counts = {}
-    for entry in occurances:
+    for entry in occurrences:
         if entry not in counts.keys():
             counts[entry] = 0
         counts[entry] += 1
@@ -96,30 +96,30 @@ def validateDataset(filename: str = 'observations') -> None:
     # { 19: 102339, 18: 95 } -> result for raw dataset
     #
     # we want to remove entries, from the dataset,
-    # that have 18 occurances instead of 19
+    # that have 18 occurrences instead of 19
     # after preparation we have { 19: 102339 }
 
-    # for index, entry in enumerate(occurances):
+    # for index, entry in enumerate(occurrences):
     #     if entry == 18:
     #         indices_to_remove.append(index)
     # print(indices_to_remove)
 
 
-def prepareCriteoDataset(removeOutliers: bool = False) -> None:
+def prepare_criteo_dataset(remove_outliers: bool = False) -> None:
     if not os.path.exists(criteo_dirpath):
         os.makedirs(criteo_dirpath)
     if not os.path.exists(prepared_dirpath):
         os.makedirs(prepared_dirpath)
     if not os.path.exists(raw_dirpath):
         os.makedirs(raw_dirpath)
-    downloadCriteoDataset(raw_dirpath)
+    download_criteo_dataset(raw_dirpath)
     small_train_raw_filepath = raw_dirpath + "/small_train.csv"
     small_train_prepared_filepath = prepared_dirpath + "/small_train.csv"
     small_train = pd.read_csv(small_train_raw_filepath)
-    meta = getMeta()
+    meta = get_meta()
     if not 'removeOutliers' in meta:
-        meta['removeOutliers'] = removeOutliers
-    if removeOutliers is True or 'removeOutliers' in meta and meta['removeOutliers'] != str(removeOutliers):
+        meta['removeOutliers'] = remove_outliers
+    if remove_outliers is True or 'removeOutliers' in meta and meta['removeOutliers'] != str(remove_outliers):
         # indices below are the result of the code commented above
         indices_to_remove = [29,
                              1166,
@@ -221,17 +221,17 @@ def prepareCriteoDataset(removeOutliers: bool = False) -> None:
     setMeta(meta)
 
 
-def encodeX(entries: pd.DataFrame) -> torch.tensor:
+def encode_x(entries: pd.DataFrame) -> torch.tensor:
     return torch.tensor(entries.to_numpy()).float()
 
 
-def encodeY(entries: pd.DataFrame) -> torch.tensor:
-    ce_BE = ce.BinaryEncoder(cols=['click'])
-    entries = ce_BE.fit_transform(entries)
+def encode_y(entries: pd.DataFrame) -> torch.tensor:
+    ce_be = ce.BinaryEncoder(cols=['click'])
+    entries = ce_be.fit_transform(entries)
     return torch.tensor(entries.to_numpy()).float()
 
 
-def getRawData() -> list[torch.tensor, torch.tensor]:
+def get_raw_data() -> list[torch.tensor, torch.tensor]:
     data_x = np.array([])
     contents = pd.read_csv(filepath)
     contents.columns = CSV_COLUMNS
@@ -247,13 +247,13 @@ class CTRNormalize:
         clicks = min(max(clicks, 0), count)
         return clicks / count
 
-    @staticmethod
-    def smoothing(clicks: float, count: float, eps: float):
-        ctr = clicks / count
-        return (ctr * count + prior_weight * prior) / (count + prior_weight)
+    # @staticmethod
+    # def smoothing(clicks: float, count: float):
+    #     ctr = clicks / count
+    #     return (ctr * count + prior_weight * prior) / (count + prior_weight)
 
 
-def getMeta():
+def get_meta():
     if not os.path.exists(meta_filepath):
         return {}
     meta_file = open(meta_filepath, "r")
@@ -276,7 +276,7 @@ def setMeta(meta):
 def saveMeta(filename):
     meta_file = open(prepared_dirpath + f"/{filename}.meta", "w", newline='')
     meta_writer = csv.writer(meta_file)
-    meta = getMeta()
+    meta = get_meta()
     for key in meta:
         meta_writer.writerow([key, meta[key]])
     meta_file.close()
@@ -289,9 +289,9 @@ def _count_generator(reader):
         b = reader(1024 * 1024)
 
 
-def prepareRelevantAggregates(removeOutliers, withPairs):
-    meta = getMeta()
-    if "withPairs" in meta and "removeOutliers" in meta and meta["withPairs"] == str(withPairs) and meta["removeOutliers"] == str(removeOutliers):
+def prepare_relevant_aggregates(remove_outliers, with_pairs):
+    meta = get_meta()
+    if "withPairs" in meta and "removeOutliers" in meta and meta["withPairs"] == str(with_pairs) and meta["removeOutliers"] == str(remove_outliers):
         return
     entries = pd.read_csv(filepath)
     observations_singles_source = raw_dirpath + aggregated_noisy_singles_filename
@@ -317,7 +317,7 @@ def prepareRelevantAggregates(removeOutliers, withPairs):
             relevant_singles_writer.writerow(entry)
     observations_singles_source_file.close()
     relevant_singles_file.close()
-    if withPairs:
+    if with_pairs:
         relevant_pairs_dest = prepared_dirpath + \
             relevant_aggregated_noisy_pairs_filename
         if os.path.exists(relevant_pairs_dest):
@@ -343,9 +343,9 @@ def prepareRelevantAggregates(removeOutliers, withPairs):
         relevant_pairs_file.close()
 
 
-def prepareObservations(normalizeCTR: Callable, minCount: float = None, filename: str = 'observations', removeOutliers: bool = False, withPairs: bool = False, force: bool = False) -> None:
-    prepareCriteoDataset(removeOutliers)
-    prepareRelevantAggregates(removeOutliers, withPairs)
+def prepare_observations(normalize_ctr: Callable, min_count: float = None, filename: str = 'observations', remove_outliers: bool = False, with_pairs: bool = False, force: bool = False) -> None:
+    prepare_criteo_dataset(remove_outliers)
+    prepare_relevant_aggregates(remove_outliers, with_pairs)
     observations_single_source = prepared_dirpath + \
         relevant_aggregated_noisy_singles_filename
     observations_pairs_source = prepared_dirpath + \
@@ -364,21 +364,21 @@ def prepareObservations(normalizeCTR: Callable, minCount: float = None, filename
     observations_file = open(observations_destination, "w", newline='')
     observations_file_writer = csv.writer(observations_file, delimiter=';')
     entries = pd.read_csv(filepath)
-    removedCountSingle = 0
+    removed_count_single = 0
     for entry in tqdm(observations_source_file_single_reader, total=single_count):
         feature_value, feature_id, count, clicks, sales = entry
-        ctr = normalizeCTR(float(clicks), float(count), EPS)
+        ctr = normalize_ctr(float(clicks), float(count), EPS)
         entries_indices = list(
             np.where(entries[f"hash_{int(feature_id)}"] == int(feature_value))[0])
 
         if len(entries_indices):
-            if minCount is not None and float(count) < minCount:
-                removedCountSingle += 1
+            if min_count is not None and float(count) < min_count:
+                removed_count_single += 1
                 continue
             observations_file_writer.writerow([entries_indices, ctr])
-    print(f"single-observation removed count {removedCountSingle}")
-    removedCountPairs = 0
-    if withPairs:
+    print(f"single-observation removed count {removed_count_single}")
+    removed_count_pairs = 0
+    if with_pairs:
         observations_pairs_source_file = open(observations_pairs_source)
         with open(observations_pairs_source, 'rb') as file:
             p_c_generator = _count_generator(file.raw.read)
@@ -388,25 +388,25 @@ def prepareObservations(normalizeCTR: Callable, minCount: float = None, filename
             observations_pairs_source_file, delimiter=',')
         for entry in tqdm(observations_source_file_pairs_reader, total=pairs_count):
             feature_1_value, feature_2_value, feature_1_id, feature_2_id, count, clicks, sales = entry
-            ctr = normalizeCTR(float(clicks), float(count), EPS)
+            ctr = normalize_ctr(float(clicks), float(count), EPS)
             entries_indices = list(
                 np.where((entries[f"hash_{int(feature_1_id)}"] == int(feature_1_value)) & (entries[f"hash_{int(feature_2_id)}"] == int(feature_2_value)))[0])
             if len(entries_indices):
-                if minCount is not None and float(count) < minCount:
-                    removedCountPairs += 1
+                if min_count is not None and float(count) < min_count:
+                    removed_count_pairs += 1
                     continue
                 observations_file_writer.writerow([entries_indices, ctr])
-        print(f"pairs-observation removed count {removedCountPairs}")
+        print(f"pairs-observation removed count {removed_count_pairs}")
         observations_pairs_source_file.close()
     observations_file.close()
     observations_single_source_file.close()
-    meta = getMeta()
-    meta["withPairs"] = withPairs
-    meta["minCount"] = minCount
+    meta = get_meta()
+    meta["withPairs"] = with_pairs
+    meta["minCount"] = min_count
     setMeta(meta)
 
 
-def retrieveObservations(filename: str = 'observations') -> list[torch.tensor, list[Observation]]:
+def retrieve_observations(filename: str = 'observations') -> list[torch.tensor, list[Observation]]:
     observations_destination = prepared_dirpath + f"/{filename}.csv"
     observations_file = open(observations_destination, 'r')
     observations_file_reader = csv.reader(observations_file, delimiter=';')
@@ -430,26 +430,26 @@ def retrieveObservations(filename: str = 'observations') -> list[torch.tensor, l
     return [obs_y, meta]
 
 
-def getObservations(filename: str = 'observations') -> list[torch.tensor, list[Observation]]:
-    prepareObservations(filename)
-    return retrieveObservations(filename)
+def get_observations(filename: str = 'observations') -> list[torch.tensor, list[Observation]]:
+    prepare_observations(filename)
+    return retrieve_observations(filename)
 
 
-def retrieveData(filename: str = 'observations') -> list[torch.tensor, torch.tensor, torch.tensor, list[Observation]]:
-    data_x, data_y = getRawData()
-    data_x = encodeX(data_x)
-    data_y = encodeY(data_y)
-    obs_y, meta = getObservations(filename)
+def retrieve_data(filename: str = 'observations') -> list[torch.tensor, torch.tensor, torch.tensor, list[Observation]]:
+    data_x, data_y = get_raw_data()
+    data_x = encode_x(data_x)
+    data_y = encode_y(data_y)
+    obs_y, meta = get_observations(filename)
     return [data_x, data_y, obs_y, meta]
 
 
-def getWeights() -> tuple[float, float]:
-    prepareCriteoDataset()
+def get_weights() -> tuple[float, float]:
+    prepare_criteo_dataset()
     contents = pd.read_csv(filepath)
     contents.columns = CSV_COLUMNS
-    data_y = encodeY(contents[contents.columns[19]])
-    BCount = torch.sum(data_y[:, 1])
-    ACount = len(contents[contents.columns[19]]) - BCount
-    AWeight = ACount / (BCount + ACount)
-    BWeight = BCount / (BCount + ACount)
-    return AWeight, BWeight
+    data_y = encode_y(contents[contents.columns[19]])
+    b_count = torch.sum(data_y[:, 1])
+    a_count = len(contents[contents.columns[19]]) - b_count
+    a_weight = a_count / (b_count + a_count)
+    b_weight = b_count / (b_count + a_count)
+    return a_weight, b_weight

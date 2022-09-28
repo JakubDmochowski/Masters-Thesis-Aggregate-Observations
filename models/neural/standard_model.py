@@ -1,4 +1,3 @@
-import torch
 from data.dataset import Dataset
 import numpy as np
 from itertools import chain
@@ -6,13 +5,12 @@ from typing import Callable
 from models.neural.base_model import Model
 
 
-def length_to_range(lengths: list[int]):
-    lengths = [0] + np.cumsum(lengths).tolist()
-    return [range(a, b) for a, b in zip(lengths[:-1], lengths[1:])]
-
-
 class StandardModel(Model):
     def train(self, dataset: Dataset, optimizer, loss: Callable, batch_size: int) -> None:
+        """
+
+        :rtype: object
+        """
         data_y_batch_indices = np.random.choice(
             len(dataset.observations), size=batch_size)
         observations_batch = np.array(

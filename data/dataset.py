@@ -27,12 +27,12 @@ class Dataset:
 
     @staticmethod
     def validate(dataset) -> bool:
-        if (dataset == None):
+        if dataset is None:
             raise ValueError("Model: No dataset provided")
-        if (len(dataset.data_x) == 0):
+        if len(dataset.data_x) == 0:
             raise ValueError("Model: No entries in dataset")
-        if (len(dataset.data_y) == 0):
+        if len(dataset.data_y) == 0:
             raise ValueError("Model: No values in dataset")
-        if (len(dataset.observations) == 0):
+        if len(dataset.observations) == 0:
             raise ValueError("Model: No observations in dataset")
         return True

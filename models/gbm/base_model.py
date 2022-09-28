@@ -4,7 +4,7 @@ import lightgbm as lgb
 import numpy as np
 import csv
 import os
-from data.tabular.criteo import getMeta
+from data.tabular.criteo import get_meta
 from datetime import date
 import re
 
@@ -32,7 +32,8 @@ class Model:
         }
         self.train_params = default_train_params | train_params
 
-    def toLGBDataset(self, dataset: Dataset) -> lgb.Dataset:
+    @staticmethod
+    def to_lgb_dataset(dataset: Dataset) -> lgb.Dataset:
         data_indices = list(
             chain(*[obs.entries_indices for obs in dataset.observations]))
 
@@ -72,7 +73,7 @@ class Model:
 
         meta_filename = f"{basename}.meta"
         if not os.path.exists(meta_filename):
-            meta = self.lgb_params | self.train_params | getMeta()
+            meta = self.lgb_params | self.train_params | get_meta()
             meta_file = open(f"{savedir}/{meta_filename}", "w", newline='')
             meta_file_writer = csv.writer(meta_file)
             for entry in meta:

@@ -14,7 +14,7 @@ class Model:
     def parameters(self):
         return self.model.parameters()
 
-    def getModelFor(self, dataset: Dataset) -> None:
+    def get_model_for(self, dataset: Dataset) -> None:
         Dataset.validate(dataset)
         if self.classification:
             self.model = XBNETClassifier(dataset, layers_raw=self.layers_raw)

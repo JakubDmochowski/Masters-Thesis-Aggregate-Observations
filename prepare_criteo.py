@@ -1,11 +1,10 @@
-from data.tabular.criteo import prepareObservations, CTRNormalize, getMeta, setMeta
+from data.tabular.criteo import prepare_observations, CTRNormalize, get_meta, setMeta
 
 STD_DEV = 17
 CUTOFF = 4 * STD_DEV
 
-
-prepareObservations(normalizeCTR=CTRNormalize.cutoff,
-                    minCount = CUTOFF, removeOutliers=False, withPairs=True, force=True)
-meta = getMeta()
+prepare_observations(normalize_ctr=CTRNormalize.cutoff,
+                     min_count=CUTOFF, remove_outliers=False, with_pairs=True, force=True)
+meta = get_meta()
 meta['normalizeCTR'] = 'cutoff'
 setMeta(meta)

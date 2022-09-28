@@ -13,7 +13,7 @@ class Model:
     def parameters(self):
         return self.model.parameters()
 
-    def getModelFor(self, dataset: Dataset) -> None:
+    def get_model_for(self, dataset: Dataset) -> None:
         Dataset.validate(dataset)
         self.input_nodes = len(dataset.data_x[0])
         self.output_nodes = len(dataset.data_y[0])

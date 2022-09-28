@@ -5,8 +5,8 @@ import lightgbm as lgb
 
 class StandardModel(Model):
     def train(self, dataset: Dataset, validate: Dataset) -> None:
-        lgb_train = self.toLGBDataset(dataset)
-        lgb_validate = self.toLGBDataset(validate)
+        lgb_train = self.to_lgb_dataset(dataset)
+        lgb_validate = self.to_lgb_dataset(validate)
         self.gbm = lgb.train(
             params=self.lgb_params,
             train_set=lgb_train,

@@ -8,7 +8,7 @@ PLOTSIZE = (6, 6)
 PLOTSIZE_SM = (4, 4)
 
 
-def plotLosses(loss_history: list[list[float]]):
+def plot_losses(loss_history: list[list[float]]):
     fig, ax = plt.subplots(figsize=PLOTSIZE)
     x = range(0, len(loss_history))
     models = loss_history[0].keys()
@@ -22,7 +22,7 @@ def plotLosses(loss_history: list[list[float]]):
     fig.show()
 
 
-def plotXY(data_x: torch.tensor, expected_y: torch.tensor, series: list[dict], value_func: Callable = None):
+def plot_xy(data_x: torch.tensor, expected_y: torch.tensor, series: list[dict], value_func: Callable = None):
     fig, ax = plt.subplots(figsize=PLOTSIZE)
     if value_func is not None:
         x = np.array([x[0] for x in data_x.numpy()])
@@ -41,7 +41,7 @@ def plotXY(data_x: torch.tensor, expected_y: torch.tensor, series: list[dict], v
     fig.show()
 
 
-def plotROC(targets, predictions, title):
+def plot_roc(targets, predictions, title):
     fig, ax = plt.subplots(figsize=PLOTSIZE)
     fpr, tpr, _ = metrics.roc_curve(
         targets.reshape(-1),  predictions.reshape(-1))
@@ -52,7 +52,7 @@ def plotROC(targets, predictions, title):
     fig.show()
 
 
-def plotAUC(models, targets, every):
+def plot_auc(models, targets, every):
     fig, ax = plt.subplots(figsize=PLOTSIZE)
     for model in models:
         auc_history = []
@@ -88,7 +88,7 @@ def plotPrecision(models, targets, every):
     fig.show()
 
 
-def plotRecall(models, targets, every):
+def plot_recall(models, targets, every):
     fig, ax = plt.subplots(figsize=PLOTSIZE)
     for model in models:
         recall_history = []
@@ -108,7 +108,7 @@ def plotRecall(models, targets, every):
     fig.show()
 
 
-def plotConfusionMatrix(models, targets):
+def plot_confusion_matrix(models, targets):
     for model in models:
         fig, ax = plt.subplots(figsize=PLOTSIZE_SM)
         predictions = model["prediction_history"][len(
@@ -119,4 +119,3 @@ def plotConfusionMatrix(models, targets):
             targets[:, 0].reshape(-1), predictions[:, 0].reshape(-1), ax=ax)
         ax.set_title(model["label"])
         fig.show()
-    # plt.show()

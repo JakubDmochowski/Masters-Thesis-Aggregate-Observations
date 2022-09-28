@@ -9,17 +9,15 @@ import numpy as np
 
 class StandardModel(Model):
 
-    # def train(self, trainDataload, criterion, optimizer):
     def train(self, dataset: Dataset, optimizer, loss: Callable, batch_size: int) -> None:
         '''
         Training function for training the model with the given data
-        :param model(XBNET Classifier/Regressor): model to be trained
-        :param trainDataload(object of DataLoader): DataLoader with training data
-        :param criterion(object of loss function): Loss function to be used for training
-        :param optimizer(object of Optimizer): Optimizer used for training
-        :param epochs(int,optional): Number of epochs for training the model. Default value: 100
+        :param batch_size: Number of elements in training data for every epoch
+        :param loss: Loss function
+        :param dataset: Dataset with observation metadata
+        :param optimizer: Optimizer used for training
         :return:
-        list of training accuracy, training loss, testing accuracy, testing loss for all the epochs
+        Training loss
         '''
         data_y_batch_indices = np.random.choice(
             len(dataset.observations), size=batch_size)

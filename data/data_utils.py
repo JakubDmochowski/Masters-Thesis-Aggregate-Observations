@@ -6,18 +6,18 @@ from itertools import chain
 from sklearn.model_selection import train_test_split
 
 
-def observationSubsetFor(data: torch.tensor, dataset: Dataset):
+def observation_subset_for(data: torch.tensor, dataset: Dataset):
     data_indices = list(
         chain(*[obs.entries_indices for obs in dataset.observations]))
     return data[data_indices]
 
 
-def generateValues(data_x: torch.tensor, value_func: Callable) -> np.ndarray:
+def generate_values(data_x: torch.tensor, value_func: Callable) -> np.ndarray:
     # returned data_y is a tensor shaped (entries, values)
     return torch.tensor(np.array([value_func(x) for x in data_x.numpy()])).float()
 
 
-def splitData(meta, test_split, validation_split, random_state):
+def split_data(meta, test_split, validation_split, random_state):
     vt_size = validation_split + test_split
     meta_train, meta_other = train_test_split(
         meta, test_size=vt_size, random_state=random_state)

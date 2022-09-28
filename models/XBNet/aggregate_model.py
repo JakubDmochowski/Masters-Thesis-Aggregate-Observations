@@ -11,7 +11,8 @@ LABEL_ESTIMATE_USE_PROBABILITIES = False
 
 
 class AggregateModel(Model):
-    def applyAggregateLoss(self, loss: Callable, entry_predictions: torch.tensor, observations: torch.tensor, lengths: list[int]):
+    def applyAggregateLoss(self, loss: Callable, entry_predictions: torch.tensor, observations: torch.tensor,
+                           lengths: list[int]):
         ranges = length_to_range(lengths)
         predictions = torch.stack(
             [entry_predictions[r].mean(axis=0) for r in ranges])
@@ -20,13 +21,12 @@ class AggregateModel(Model):
     def train(self, dataset: Dataset, optimizer, loss: Callable, batch_size: int) -> None:
         '''
         Training function for training the model with the given data
-        :param model(XBNET Classifier/Regressor): model to be trained
-        :param trainDataload(object of DataLoader): DataLoader with training data
-        :param criterion(object of loss function): Loss function to be used for training
-        :param optimizer(object of Optimizer): Optimizer used for training
-        :param epochs(int,optional): Number of epochs for training the model. Default value: 100
+        :param batch_size: number of elements in data training for one epoch
+        :param loss: Loss function to be used for training
+        :param dataset: Dataset object with observations metadata
+        :param optimizer: Optimizer used for training
         :return:
-        list of training accuracy, training loss, testing accuracy, testing loss for all the epochs
+        loss value
         '''
         data_y_batch_indices = np.random.choice(
             len(dataset.observations), size=batch_size)
@@ -69,13 +69,9 @@ class AggregateModel(Model):
                 out = torch.squeeze(out, 1)
         except:
             pass
-        # print(y_batch_est.float())
-        # self.model.get(y_batch_est.float())
-        # print(self.model(inp.float()))
         self.model.get(y_batch_est.float())
         l = self.applyAggregateLoss(
             loss, self.model(inp.float()), out.float(), l_batch)
-        # l = loss(self.model(inp.float()), out.float())
         l.backward()
         optimizer.step()
         optimizer.zero_grad()

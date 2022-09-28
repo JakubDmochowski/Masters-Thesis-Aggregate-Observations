@@ -4,7 +4,7 @@ import numpy as np
 from xgboost import XGBClassifier, XGBRegressor
 from collections import OrderedDict
 from models.XBNet.Seq import Seq
-from data.data_utils import observationSubsetFor
+from data.data_utils import observation_subset_for
 from data.dataset import Dataset
 
 
@@ -27,8 +27,8 @@ class XBNETClassifier(torch.nn.Module):
         self.num_layers_boosted = num_layers_boosted
         self.layers_raw = layers_raw
 
-        self.X = observationSubsetFor(data=dataset.data_x, dataset=dataset)
-        self.y = observationSubsetFor(data=dataset.data_y, dataset=dataset)
+        self.X = observation_subset_for(data=dataset.data_x, dataset=dataset)
+        self.y = observation_subset_for(data=dataset.data_y, dataset=dataset)
         self.prepare_model(dataset)
         self.base_tree()
 

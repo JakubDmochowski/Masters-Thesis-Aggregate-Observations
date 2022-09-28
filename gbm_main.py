@@ -2,10 +2,10 @@ import numpy as np
 from models.gbm.aggregate_model import AggregateModel
 from models.gbm.standard_model import StandardModel
 from data.dataset import Dataset
-from data.tabular.criteo import retrieveData
-from data.data_utils import observationSubsetFor, splitData
+from data.tabular.criteo import retrieve_data
+from data.data_utils import observation_subset_for, split_data
 import torch
-from plot_utils import plotConfusionMatrix
+from plot_utils import plot_confusion_matrix
 
 RANDOM_SEED = 2022
 
@@ -37,10 +37,10 @@ obs_y = None
 meta = None
 valFunc = None
 
-data_x, data_y, obs_y, meta = retrieveData()
+data_x, data_y, obs_y, meta = retrieve_data()
 expected_y = data_y
 
-meta_train, meta_validate, meta_test = splitData(
+meta_train, meta_validate, meta_test = split_data(
     meta, test_split=TEST_SPLIT, validation_split=VALIDATION_SPLIT, random_state=RANDOM_SEED)
 data_train = Dataset(data_x=data_x, data_y=data_y,
                      obs_y=obs_y, observations=meta_train)
@@ -66,7 +66,7 @@ data_x_a, aggregate_predictions = aggregate_model.test(
 data_x_s, standard_predictions = standard_model.test(
     dataset=data_test)
 
-targets = observationSubsetFor(data=expected_y, dataset=data_validate)
+targets = observation_subset_for(data=expected_y, dataset=data_validate)
 prediction_data = [
     {
         "label": 'aggregate model',
@@ -77,7 +77,7 @@ prediction_data = [
         "prediction_history": [torch.Tensor([[e, 1-e] for e in standard_predictions])],
     }
 ]
-plotConfusionMatrix(prediction_data, targets)
+plot_confusion_matrix(prediction_data, targets)
 
 
 input("Press Enter to continue...")

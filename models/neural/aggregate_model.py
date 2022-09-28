@@ -9,7 +9,8 @@ from typing import Callable
 
 
 class AggregateModel(Model):
-    def applyAggregateLoss(self, loss: Callable, entry_predictions: torch.tensor, observations: torch.tensor, lengths: list[int]):
+    @staticmethod
+    def apply_aggregate_loss(loss: Callable, entry_predictions: torch.tensor, observations: torch.tensor, lengths: list[int]):
         ranges = length_to_range(lengths)
         predictions = torch.stack(
             [entry_predictions[r].mean(axis=0) for r in ranges])
@@ -30,7 +31,7 @@ class AggregateModel(Model):
         l_batch = [obs.length for obs in observations_batch]
 
         optimizer.zero_grad()
-        l = self.applyAggregateLoss(
+        l = self.apply_aggregate_loss(
             loss, self.model(x_batch), y_batch, l_batch)
         l.backward()
         optimizer.step()

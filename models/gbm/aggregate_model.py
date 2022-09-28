@@ -7,29 +7,31 @@ from typing import Callable, Tuple
 
 class AggregateModel(Model):
 
-    def grad_hess_mean_gaussian(self, preds: np.ndarray, label: np.ndarray):
-        k = preds.shape[0]
-        y = label[0]
-        grad = np.ones(k) / k * (preds.mean() - y)
+    @staticmethod
+    def grad_hess_mean_gaussian(predictions: np.ndarray, labels: np.ndarray):
+        k = predictions.shape[0]
+        y = labels[0]
+        grad = np.ones(k) / k * (predictions.mean() - y)
         hess = np.ones(k) / k ** 2
         return grad, hess
 
-    def aggregate_obj(self, grad_hess_func: Callable):
-        def obj(preds: np.ndarray, train_data: lgb.Dataset) -> Tuple[np.ndarray, np.ndarray]:
-            label = train_data.get_label()
+    @staticmethod
+    def aggregate_obj(grad_hess_func: Callable):
+        def obj(predictions: np.ndarray, train_data: lgb.Dataset) -> Tuple[np.ndarray, np.ndarray]:
+            labels = train_data.get_label()
             group = train_data.get_group()
 
-            grad = np.zeros(len(preds))
-            hess = np.zeros(len(preds))
+            grad = np.zeros(len(predictions))
+            hess = np.zeros(len(predictions))
 
             head, last = 0, 0
             for num_i in group.astype(int):
                 head, last = last, last + num_i
 
-                preds_i = preds[head:last]
-                label_i = label[head:last]
+                predictions_i = predictions[head:last]
+                labels_i = labels[head:last]
 
-                grad_i, hess_i = grad_hess_func(preds_i, label_i)
+                grad_i, hess_i = grad_hess_func(predictions_i, labels_i)
 
                 grad[head:last] = grad_i
                 hess[head:last] = hess_i
@@ -39,8 +41,8 @@ class AggregateModel(Model):
         return obj
 
     def train(self, dataset: Dataset, validate: Dataset) -> None:
-        lgb_train = self.toLGBDataset(dataset)
-        lgb_validate = self.toLGBDataset(validate)
+        lgb_train = self.to_lgb_dataset(dataset)
+        lgb_validate = self.to_lgb_dataset(validate)
         self.gbm = lgb.train(
             params=self.lgb_params,
             train_set=lgb_train,

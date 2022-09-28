@@ -4,17 +4,17 @@ from collections import OrderedDict
 
 
 class Seq(torch.nn.Sequential):
-    '''
+    """
      Seq uses sequential module to implement tree in the forward.
-    '''
+    """
 
-    def give(self, xg, num_layers_boosted, ep=0.001):
-        '''
+    def give(self, xg, num_layers_boosted: int, ep: int = 0.001):
+        """
         Saves various information into the object for further usage in the training process
-        :param xg(object of XGBoostClassifier): Object og XGBoostClassifier
-        :param num_layers_boosted(int,optional): Number of layers to be boosted in the neural network.
-        :param ep(int,optional): Epsilon for smoothing. Deafult: 0.001
-        '''
+        :param xg: Object og XGBoostClassifier
+        :param num_layers_boosted: Number of layers to be boosted in the neural network.
+        :param ep: Epsilon for smoothing. Default: 0.001
+        """
         self.xg = xg
         self.epsilon = ep
         self.boosted_layers = OrderedDict()
@@ -30,7 +30,8 @@ class Seq(torch.nn.Sequential):
                 if i < self.num_layers_boosted:
                     try:
                         self.boosted_layers[i] = torch.from_numpy(np.array(
-                            self.xg.fit(x0.detach().numpy(), (self.l).detach().numpy()).feature_importances_) + self.epsilon)
+                            self.xg.fit(x0.detach().numpy(),
+                                        (self.l).detach().numpy()).feature_importances_) + self.epsilon)
                     except:
                         pass
         return input
