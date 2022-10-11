@@ -49,7 +49,6 @@ data_test = Dataset(data_x=data_x, data_y=data_y,
 data_validate = Dataset(
     data_x=data_x, data_y=expected_y, obs_y=obs_y, observations=meta_validate)
 
-
 aggregate_model = AggregateModel(train_params=TRAIN_PARAMS)
 standard_model = StandardModel(train_params=TRAIN_PARAMS)
 if LOAD_MODEL is not None:
@@ -70,14 +69,13 @@ targets = observation_subset_for(data=expected_y, dataset=data_validate)
 prediction_data = [
     {
         "label": 'aggregate model',
-        "prediction_history": [torch.Tensor([[e, 1-e] for e in aggregate_predictions])],
+        "prediction_history": [torch.Tensor([[e, 1 - e] for e in aggregate_predictions])],
     },
     {
         "label": 'standard model',
-        "prediction_history": [torch.Tensor([[e, 1-e] for e in standard_predictions])],
+        "prediction_history": [torch.Tensor([[e, 1 - e] for e in standard_predictions])],
     }
 ]
 plot_confusion_matrix(prediction_data, targets)
-
 
 input("Press Enter to continue...")

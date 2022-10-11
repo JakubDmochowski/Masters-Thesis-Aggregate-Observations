@@ -24,7 +24,7 @@ while True:
         csv.field_size_limit(maxInt)
         break
     except OverflowError:
-        maxInt = int(maxInt/10)
+        maxInt = int(maxInt / 10)
 
 AGG_PAIR_DATA_SOURCE = 'http://go.criteo.net/criteo-privacy-ml-competition-data/aggregated-noisy-data-pairs.csv.gz'
 MAIN_DATA_SOURCE = 'https://competitions.codalab.org/my/datasets/download/03b1ddf5-f0a9-48b6-a37c-1fb076143f95'
@@ -218,7 +218,7 @@ def prepare_criteo_dataset(remove_outliers: bool = False) -> None:
                              102131]
         small_train.drop(index=indices_to_remove, inplace=True)
     small_train.to_csv(small_train_prepared_filepath, index=False)
-    setMeta(meta)
+    set_meta(meta)
 
 
 def encode_x(entries: pd.DataFrame) -> torch.tensor:
@@ -240,19 +240,6 @@ def get_raw_data() -> list[torch.tensor, torch.tensor]:
     return [data_x, data_y]
 
 
-class CTRNormalize:
-    @staticmethod
-    def cutoff(clicks: float, count: float, eps: float):
-        count = max(count, eps)
-        clicks = min(max(clicks, 0), count)
-        return clicks / count
-
-    # @staticmethod
-    # def smoothing(clicks: float, count: float):
-    #     ctr = clicks / count
-    #     return (ctr * count + prior_weight * prior) / (count + prior_weight)
-
-
 def get_meta():
     if not os.path.exists(meta_filepath):
         return {}
@@ -265,7 +252,7 @@ def get_meta():
     return meta
 
 
-def setMeta(meta):
+def set_meta(meta):
     meta_file = open(meta_filepath, "w", newline='')
     meta_writer = csv.writer(meta_file)
     for key in meta:
@@ -273,7 +260,7 @@ def setMeta(meta):
     meta_file.close()
 
 
-def saveMeta(filename):
+def save_meta(filename):
     meta_file = open(prepared_dirpath + f"/{filename}.meta", "w", newline='')
     meta_writer = csv.writer(meta_file)
     meta = get_meta()
@@ -291,12 +278,13 @@ def _count_generator(reader):
 
 def prepare_relevant_aggregates(remove_outliers, with_pairs):
     meta = get_meta()
-    if "withPairs" in meta and "removeOutliers" in meta and meta["withPairs"] == str(with_pairs) and meta["removeOutliers"] == str(remove_outliers):
+    if "withPairs" in meta and "removeOutliers" in meta and meta["withPairs"] == str(with_pairs) and meta[
+        "removeOutliers"] == str(remove_outliers):
         return
     entries = pd.read_csv(filepath)
     observations_singles_source = raw_dirpath + aggregated_noisy_singles_filename
     relevant_singles_dest = prepared_dirpath + \
-        relevant_aggregated_noisy_singles_filename
+                            relevant_aggregated_noisy_singles_filename
     if os.path.exists(relevant_singles_dest):
         os.remove(relevant_singles_dest)
     observations_singles_source_file = open(observations_singles_source)
@@ -319,7 +307,7 @@ def prepare_relevant_aggregates(remove_outliers, with_pairs):
     relevant_singles_file.close()
     if with_pairs:
         relevant_pairs_dest = prepared_dirpath + \
-            relevant_aggregated_noisy_pairs_filename
+                              relevant_aggregated_noisy_pairs_filename
         if os.path.exists(relevant_pairs_dest):
             os.remove(relevant_pairs_dest)
         observations_pairs_source = raw_dirpath + aggregated_noisy_pairs_filename
@@ -336,20 +324,22 @@ def prepare_relevant_aggregates(remove_outliers, with_pairs):
         for entry in tqdm(observations_source_file_pairs_reader, total=pairs_count):
             feature_1_value, feature_2_value, feature_1_id, feature_2_id, count, clicks, sales = entry
             entries_indices = list(
-                np.where((entries[f"hash_{int(feature_1_id)}"] == int(feature_1_value)) & (entries[f"hash_{int(feature_2_id)}"] == int(feature_2_value)))[0])
+                np.where((entries[f"hash_{int(feature_1_id)}"] == int(feature_1_value)) & (
+                        entries[f"hash_{int(feature_2_id)}"] == int(feature_2_value)))[0])
             if len(entries_indices):
                 relevant_pairs_writer.writerow(entry)
         observations_pairs_source_file.close()
         relevant_pairs_file.close()
 
 
-def prepare_observations(normalize_ctr: Callable, min_count: float = None, filename: str = 'observations', remove_outliers: bool = False, with_pairs: bool = False, force: bool = False) -> None:
+def prepare_observations(normalize_ctr: Callable, min_count: float = None, filename: str = 'observations',
+                         remove_outliers: bool = False, with_pairs: bool = False, force: bool = False) -> None:
     prepare_criteo_dataset(remove_outliers)
     prepare_relevant_aggregates(remove_outliers, with_pairs)
     observations_single_source = prepared_dirpath + \
-        relevant_aggregated_noisy_singles_filename
+                                 relevant_aggregated_noisy_singles_filename
     observations_pairs_source = prepared_dirpath + \
-        relevant_aggregated_noisy_pairs_filename
+                                relevant_aggregated_noisy_pairs_filename
     observations_destination = prepared_dirpath + f"/{filename}.csv"
     if not force and not os.path.exists(observations_destination):
         return
@@ -390,7 +380,8 @@ def prepare_observations(normalize_ctr: Callable, min_count: float = None, filen
             feature_1_value, feature_2_value, feature_1_id, feature_2_id, count, clicks, sales = entry
             ctr = normalize_ctr(float(clicks), float(count), EPS)
             entries_indices = list(
-                np.where((entries[f"hash_{int(feature_1_id)}"] == int(feature_1_value)) & (entries[f"hash_{int(feature_2_id)}"] == int(feature_2_value)))[0])
+                np.where((entries[f"hash_{int(feature_1_id)}"] == int(feature_1_value)) & (
+                        entries[f"hash_{int(feature_2_id)}"] == int(feature_2_value)))[0])
             if len(entries_indices):
                 if min_count is not None and float(count) < min_count:
                     removed_count_pairs += 1
@@ -403,7 +394,7 @@ def prepare_observations(normalize_ctr: Callable, min_count: float = None, filen
     meta = get_meta()
     meta["withPairs"] = with_pairs
     meta["minCount"] = min_count
-    setMeta(meta)
+    set_meta(meta)
 
 
 def retrieve_observations(filename: str = 'observations') -> list[torch.tensor, list[Observation]]:

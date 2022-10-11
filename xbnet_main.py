@@ -8,7 +8,7 @@ from data.data_utils import generate_values, observation_subset_for, split_data
 import torch
 from torch import optim
 from tqdm import trange
-from plot_utils import plot_xy, plot_losses, plot_auc, plotPrecision, plot_recall, plot_confusion_matrix
+from plot_utils import plot_xy, plot_losses, plot_auc, plot_precision, plot_recall, plot_confusion_matrix
 
 RANDOM_SEED = 2022
 
@@ -155,8 +155,8 @@ else:
     ]
     plot_auc(prediction_data, targets,
              every=VALIDATE_EVERY_K_ITERATIONS)
-    plotPrecision(prediction_data, targets,
-                  every=VALIDATE_EVERY_K_ITERATIONS)
+    plot_precision(prediction_data, targets,
+                   every=VALIDATE_EVERY_K_ITERATIONS)
     plot_recall(prediction_data, targets,
                 every=VALIDATE_EVERY_K_ITERATIONS)
     plot_confusion_matrix(prediction_data, targets)

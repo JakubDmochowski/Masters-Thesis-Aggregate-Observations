@@ -44,7 +44,7 @@ def plot_xy(data_x: torch.tensor, expected_y: torch.tensor, series: list[dict], 
 def plot_roc(targets, predictions, title):
     fig, ax = plt.subplots(figsize=PLOTSIZE)
     fpr, tpr, _ = metrics.roc_curve(
-        targets.reshape(-1),  predictions.reshape(-1))
+        targets.reshape(-1), predictions.reshape(-1))
     ax.plot(fpr, tpr)
     ax.set_xlabel('True Positive Rate')
     ax.set_ylabel('False Positive Rate')
@@ -68,7 +68,7 @@ def plot_auc(models, targets, every):
     fig.show()
 
 
-def plotPrecision(models, targets, every):
+def plot_precision(models, targets, every):
     fig, ax = plt.subplots(figsize=PLOTSIZE)
     for model in models:
         precision_history = []
