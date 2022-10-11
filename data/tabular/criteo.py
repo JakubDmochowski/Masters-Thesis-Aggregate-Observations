@@ -10,6 +10,7 @@ import csv
 from tqdm import tqdm
 import re
 import urllib
+import networkx as nx
 
 # observations meta csv has some fields that are exceeding csv reader's limits
 # to overcome this problem we set higher limitation
@@ -444,3 +445,40 @@ def get_weights() -> tuple[float, float]:
     a_weight = a_count / (b_count + a_count)
     b_weight = b_count / (b_count + a_count)
     return a_weight, b_weight
+
+
+def for_entry_in_csv_file(fpath: str, execute: Callable, description: str = "Processing file"):
+    with open(fpath, 'rb') as file:
+        s_c_generator = _count_generator(file.raw.read)
+        ct = sum(buffer.count(b'\n') for buffer in s_c_generator)
+    file_source = open(fpath)
+    reader = csv.reader(file_source, delimiter=',')
+    next(reader, None)  # skip header
+    pbar = tqdm(reader, total=ct)
+    for entry in pbar:
+        pbar.set_description(description)
+        execute(entry)
+    file_source.close()
+
+
+class CriteoDataGraph(nx.Graph):
+    def __init__(self):
+        super().__init__(self)
+        self.prep()
+
+    def prep(self):
+        def single_iteration(entry):
+            feature_value, feature_id, count, clicks, sales = entry
+            self.add_node(f"attr_{feature_id}_val_{feature_value}", count=float(count), clicks=float(clicks))
+
+        for_entry_in_csv_file(raw_dirpath + aggregated_noisy_singles_filename, execute=single_iteration,
+                              description="Processing single-attribute aggregates")
+
+        def pair_iteration(entry):
+            feature_1_value, feature_2_value, feature_1_id, feature_2_id, count, nb_clicks, nb_sales = entry
+            node_a = f"attr_{int(feature_1_id)}_val_{feature_1_value}"
+            node_b = f"attr_{int(feature_2_id)}_val_{feature_2_value}"
+            self.add_edge(node_a, node_b, count=float(count), clicks=float(nb_clicks))
+
+        for_entry_in_csv_file(raw_dirpath + aggregated_noisy_pairs_filename, execute=pair_iteration,
+                              description="Processing pair-attribute aggregates")
