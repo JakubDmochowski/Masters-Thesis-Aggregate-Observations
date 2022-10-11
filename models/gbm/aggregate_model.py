@@ -50,5 +50,6 @@ class AggregateModel(Model):
             num_boost_round=self.train_params["num_boost_round"],
             fobj=self.aggregate_obj(self.grad_hess_mean_gaussian),
             callbacks=[lgb.early_stopping(
-                self.train_params["early_stopping_rounds"])]
+                self.train_params["early_stopping_rounds"])],
+            init_model=self.gbm
         )
