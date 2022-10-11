@@ -21,16 +21,10 @@ class DataGenerator:
         val = ret.group(2)
         return int(attr), float(val)
 
-    @staticmethod
-    def probability(individual_count: int, sum_count: float, mean_count: float, no_objects: int):
-        return (np.float64(individual_count) + np.float64(mean_count)) / (
-                np.float64(sum_count) + (np.float64(no_objects) * np.float64(mean_count)))
-
     def get_probabilities_for(self, objects):
-        objects_counts = [float(objects[obj]["count"]) for obj in objects]
-        sum_count = sum(objects_counts)
-        mean_count = mean(objects_counts)
-        return np.array([self.probability(individual_count, sum_count, mean_count, len(objects_counts)) for individual_count in objects_counts])
+        probs = [objects[entry]["prob"] for entry in objects]
+        probs /= sum(probs)
+        return probs
 
     def get_random_from(self, objects: list[tuple]):
         probs = self.get_probabilities_for(objects)
@@ -102,9 +96,4 @@ class DataGenerator:
     #
 
     def generate_data(self, size: int):
-        if size < 2:
-            raise ValueError("DataGenerator generate_observation size arg must be at least 2")
-        # for i in range(size):
-        #     observation_data.append(self.generate_entry())
-        # return
-        return generate_entries(size)
+

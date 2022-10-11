@@ -11,6 +11,7 @@ from tqdm import tqdm
 import re
 import urllib
 import networkx as nx
+from statistics import mean
 
 # observations meta csv has some fields that are exceeding csv reader's limits
 # to overcome this problem we set higher limitation
@@ -233,7 +234,6 @@ def encode_y(entries: pd.DataFrame) -> torch.tensor:
 
 
 def get_raw_data() -> list[torch.tensor, torch.tensor]:
-    data_x = np.array([])
     contents = pd.read_csv(filepath)
     contents.columns = CSV_COLUMNS
     data_x = contents[contents.columns[0:-2]]
@@ -461,24 +461,60 @@ def for_entry_in_csv_file(fpath: str, execute: Callable, description: str = "Pro
     file_source.close()
 
 
-class CriteoDataGraph(nx.Graph):
+class CriteoDataGraph(nx.DiGraph):
     def __init__(self):
         super().__init__(self)
         self.prep()
 
-    def prep(self):
-        def single_iteration(entry):
-            feature_value, feature_id, count, clicks, sales = entry
-            self.add_node(f"attr_{feature_id}_val_{feature_value}", count=float(count), clicks=float(clicks))
+    @staticmethod
+    def probability(individual_count: int, sum_count: float, mean_count: float, no_objects: int):
+        return (np.float64(individual_count) + np.float64(mean_count)) / (
+                np.float64(sum_count) + (np.float64(no_objects) * np.float64(mean_count)))
 
-        for_entry_in_csv_file(raw_dirpath + aggregated_noisy_singles_filename, execute=single_iteration,
+    def get_probabilities_for(self, objects):
+        objects_counts = [float(objects[obj]["count"]) for obj in objects]
+        sum_count = sum(objects_counts)
+        mean_count = mean(objects_counts)
+        return np.array(
+            [self.probability(individual_count, sum_count, mean_count, len(objects_counts)) for individual_count in
+             objects_counts])
+
+    def assign_probabilities(self):
+        node_probabilities = {}
+        edge_probabilities = {}
+
+        nprobs = self.get_probabilities_for(self.nodes())
+        for node, prob in tqdm(zip(self.nodes(), nprobs), total=self.number_of_nodes(), desc="Assigning probabilities"):
+            node_probabilities[node] = prob
+
+            node_edges = nx.edges(self, node)
+            edge_probs = self.get_probabilities_for(node_edges)
+            for edge, prob in zip(node_edges, edge_probs):
+                edge_probabilities[edge] = prob
+
+        nx.set_node_attributes(self, node_probabilities, name="prob")
+        nx.set_edge_attributes(self, edge_probabilities)
+
+    def create_nodes(self):
+        def iteration(entry):
+            feature_value, feature_id, count, clicks, sales = entry
+            self.add_node(f"attr_{feature_id}_val_{feature_value}", count=float(count), clicks=float(clicks), prob=self.probability())
+
+        for_entry_in_csv_file(raw_dirpath + aggregated_noisy_singles_filename, execute=iteration,
                               description="Processing single-attribute aggregates")
 
-        def pair_iteration(entry):
+    def create_edges(self):
+        def iteration(entry):
             feature_1_value, feature_2_value, feature_1_id, feature_2_id, count, nb_clicks, nb_sales = entry
             node_a = f"attr_{int(feature_1_id)}_val_{feature_1_value}"
             node_b = f"attr_{int(feature_2_id)}_val_{feature_2_value}"
             self.add_edge(node_a, node_b, count=float(count), clicks=float(nb_clicks))
+            self.add_edge(node_b, node_a, count=float(count), clicks=float(nb_clicks))
 
-        for_entry_in_csv_file(raw_dirpath + aggregated_noisy_pairs_filename, execute=pair_iteration,
+        for_entry_in_csv_file(raw_dirpath + aggregated_noisy_pairs_filename, execute=iteration,
                               description="Processing pair-attribute aggregates")
+
+    def prep(self):
+        self.create_nodes()
+        self.create_edges()
+        self.assign_probabilities()
