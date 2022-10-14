@@ -1,3 +1,5 @@
+import copy
+
 from data.dataset import Observation
 import torch
 import numpy as np
@@ -454,9 +456,8 @@ def for_entry_in_csv_file(fpath: str, execute: Callable, description: str = "Pro
     file_source = open(fpath)
     reader = csv.reader(file_source, delimiter=',')
     next(reader, None)  # skip header
-    pbar = tqdm(reader, total=ct)
+    pbar = tqdm(reader, total=ct, desc=description)
     for entry in pbar:
-        pbar.set_description(description)
         execute(entry)
     file_source.close()
 
@@ -464,15 +465,19 @@ def for_entry_in_csv_file(fpath: str, execute: Callable, description: str = "Pro
 class CriteoDataGraph(nx.DiGraph):
     def __init__(self):
         super().__init__(self)
-        self.prep()
 
     @staticmethod
-    def probability(individual_count: int, sum_count: float, mean_count: float, no_objects: int):
-        return (np.float64(individual_count) + np.float64(mean_count)) / (
-                np.float64(sum_count) + (np.float64(no_objects) * np.float64(mean_count)))
+    def probability(individual_count: int, sum_count: float, mean_count: float, no_objects: int, eps: np.float64 = np.float64(1e-20)):
+        return (np.float64(individual_count) + np.float64(mean_count) + eps) / (
+                np.float64(sum_count) + (np.float64(no_objects) * np.float64(mean_count)) + eps)
 
-    def get_probabilities_for(self, objects):
-        objects_counts = [float(objects[obj]["count"]) for obj in objects]
+    def get_probabilities_for(self, objects, from_objects=None):
+        if from_objects is None:
+            from_objects = objects
+        objects_counts = [float(from_objects[obj]["count"]) for obj in objects]
+        if len(objects_counts) == 0:
+            print("something went terribly wrong")
+            exit(1)
         sum_count = sum(objects_counts)
         mean_count = mean(objects_counts)
         return np.array(
@@ -480,25 +485,34 @@ class CriteoDataGraph(nx.DiGraph):
              objects_counts])
 
     def assign_probabilities(self):
+        to_delete = []
+        for node in tqdm(self.nodes(), total=self.number_of_nodes(), desc="Removing unreachable nodes"):
+            node_edges = self.edges(node)
+            if len(node_edges) == 0:
+                to_delete.append(node)
+        for node in to_delete:
+            self.remove_node(node)
+        del to_delete
+
         node_probabilities = {}
         edge_probabilities = {}
-
         nprobs = self.get_probabilities_for(self.nodes())
         for node, prob in tqdm(zip(self.nodes(), nprobs), total=self.number_of_nodes(), desc="Assigning probabilities"):
             node_probabilities[node] = prob
-
-            node_edges = nx.edges(self, node)
-            edge_probs = self.get_probabilities_for(node_edges)
-            for edge, prob in zip(node_edges, edge_probs):
-                edge_probabilities[edge] = prob
-
+            edge_probs = self.get_probabilities_for(self.edges(node), self.edges())
+            for edge, eprob in zip(self.edges(node), edge_probs):
+                edge_probabilities[edge] = eprob
+        del nprobs
         nx.set_node_attributes(self, node_probabilities, name="prob")
-        nx.set_edge_attributes(self, edge_probabilities)
+        del node_probabilities
+        nx.set_edge_attributes(self, edge_probabilities, name="prob")
+        del edge_probabilities
 
     def create_nodes(self):
         def iteration(entry):
             feature_value, feature_id, count, clicks, sales = entry
-            self.add_node(f"attr_{feature_id}_val_{feature_value}", count=float(count), clicks=float(clicks), prob=self.probability())
+            self.add_node(f"attr_{int(feature_id)}_val_{feature_value}", count=float(count), clicks=float(clicks),
+                          sales=float(sales))
 
         for_entry_in_csv_file(raw_dirpath + aggregated_noisy_singles_filename, execute=iteration,
                               description="Processing single-attribute aggregates")
@@ -508,8 +522,8 @@ class CriteoDataGraph(nx.DiGraph):
             feature_1_value, feature_2_value, feature_1_id, feature_2_id, count, nb_clicks, nb_sales = entry
             node_a = f"attr_{int(feature_1_id)}_val_{feature_1_value}"
             node_b = f"attr_{int(feature_2_id)}_val_{feature_2_value}"
-            self.add_edge(node_a, node_b, count=float(count), clicks=float(nb_clicks))
-            self.add_edge(node_b, node_a, count=float(count), clicks=float(nb_clicks))
+            self.add_edge(node_a, node_b, count=float(count), clicks=float(nb_clicks), sales=float(nb_sales))
+            self.add_edge(node_b, node_a, count=float(count), clicks=float(nb_clicks), sales=float(nb_sales))
 
         for_entry_in_csv_file(raw_dirpath + aggregated_noisy_pairs_filename, execute=iteration,
                               description="Processing pair-attribute aggregates")
