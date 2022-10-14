@@ -484,7 +484,7 @@ class CriteoDataGraph(nx.DiGraph):
             [self.probability(individual_count, sum_count, mean_count, len(objects_counts)) for individual_count in
              objects_counts])
 
-    def assign_probabilities(self):
+    def remove_unreachable_nodes(self):
         to_delete = []
         for node in tqdm(self.nodes(), total=self.number_of_nodes(), desc="Removing unreachable nodes"):
             node_edges = self.edges(node)
@@ -493,7 +493,7 @@ class CriteoDataGraph(nx.DiGraph):
         for node in to_delete:
             self.remove_node(node)
         del to_delete
-
+    def assign_probabilities(self):
         node_probabilities = {}
         edge_probabilities = {}
         nprobs = self.get_probabilities_for(self.nodes())
@@ -531,4 +531,5 @@ class CriteoDataGraph(nx.DiGraph):
     def prep(self):
         self.create_nodes()
         self.create_edges()
+        self.remove_unreachable_nodes()
         self.assign_probabilities()
