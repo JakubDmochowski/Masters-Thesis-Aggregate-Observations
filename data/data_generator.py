@@ -48,7 +48,8 @@ class DataGenerator:
         val = ret.group(2)
         return int(attr), float(val)
 
-    def get_probabilities_for(self, objects, from_objects=None):
+    @staticmethod
+    def get_probabilities_for(objects, from_objects=None):
         if from_objects is None:
             from_objects = objects
         probs = [from_objects[entry]["prob"] for entry in objects]
@@ -67,8 +68,9 @@ class DataGenerator:
     def get_entry_path(self, initial_node):
         path = Path(edges=[])
         edge = self.get_next_edge(from_node=initial_node, path=path)
-        if edge:
-            path.add_edge(edge)
+        if not edge:
+            return path
+        path.add_edge(edge)
         while len(path) != self.no_attributes - 1:
             edge = self.get_next_edge(from_node=edge[1], path=path)
             if not edge:
@@ -105,6 +107,7 @@ class DataGenerator:
         expected_z_aggregates = [*[self.expected_z_for(self.data_graph.edges()[edge]) for edge in path.edges],
                                  *[self.expected_z_for(self.data_graph.nodes()[node]) for node in path.nodes]]
         return np.array(expected_z_aggregates).mean(axis=0)
+
     def get_entry_data(self, path):
         data_x = [self.values_from_node(node) for node in path.nodes]
         data_x.sort(key=lambda x: x[0]) # sort by attribute id
