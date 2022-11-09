@@ -7,7 +7,7 @@ class CTRNormalize:
 
     @staticmethod
     def no_action(clicks: float, count: float, eps: float):
-        return clicks / count
+        return (clicks + eps) / (count + eps)
 
     # @staticmethod
     # def smoothing(clicks: float, count: float):
