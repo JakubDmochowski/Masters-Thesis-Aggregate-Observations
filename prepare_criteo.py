@@ -1,11 +1,21 @@
-from data.tabular.criteo import prepare_observations, get_meta, set_meta
+from data.data_generator import DataGenerator
+from data.tabular.criteo import download_aggregated_pairs, CriteoDataGraph
 from data.ctr_normalize import CTRNormalize
+import os
 
-STD_DEV = 17
-CUTOFF = 4 * STD_DEV
+prepared_directory = os.getcwd() + "/datasets/criteo/prepared"
+if not os.path.exists(prepared_directory):
+    os.makedirs(prepared_directory)
 
-prepare_observations(normalize_ctr=CTRNormalize.cutoff,
-                     min_count=CUTOFF, remove_outliers=False, with_pairs=True, force=True)
-meta = get_meta()
-meta['normalizeCTR'] = 'cutoff'
-set_meta(meta)
+data_gen_dest = os.getcwd() + "/datasets/criteo/prepared/generated.csv"
+
+raw_directory = os.getcwd() + "/datasets/criteo/raw"
+pairs_filepath = raw_directory + "/aggregated_noisy_data_pairs.csv"
+if not os.path.exists(pairs_filepath):
+    download_aggregated_pairs(raw_directory)
+
+data_graph = CriteoDataGraph()
+data_graph.prep()
+gen = DataGenerator(data_graph=data_graph, no_attributes=19,
+                    ctr_normalize=CTRNormalize.cutoff)
+gen.generate_data(500000, filename=data_gen_dest)

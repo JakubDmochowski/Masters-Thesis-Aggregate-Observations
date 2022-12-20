@@ -282,12 +282,12 @@ def _count_generator(reader):
 def prepare_relevant_aggregates(remove_outliers, with_pairs):
     meta = get_meta()
     if "withPairs" in meta and "removeOutliers" in meta and meta["withPairs"] == str(with_pairs) and meta[
-        "removeOutliers"] == str(remove_outliers):
+            "removeOutliers"] == str(remove_outliers):
         return
     entries = pd.read_csv(filepath)
     observations_singles_source = raw_dirpath + aggregated_noisy_singles_filename
     relevant_singles_dest = prepared_dirpath + \
-                            relevant_aggregated_noisy_singles_filename
+        relevant_aggregated_noisy_singles_filename
     if os.path.exists(relevant_singles_dest):
         os.remove(relevant_singles_dest)
     observations_singles_source_file = open(observations_singles_source)
@@ -310,7 +310,7 @@ def prepare_relevant_aggregates(remove_outliers, with_pairs):
     relevant_singles_file.close()
     if with_pairs:
         relevant_pairs_dest = prepared_dirpath + \
-                              relevant_aggregated_noisy_pairs_filename
+            relevant_aggregated_noisy_pairs_filename
         if os.path.exists(relevant_pairs_dest):
             os.remove(relevant_pairs_dest)
         observations_pairs_source = raw_dirpath + aggregated_noisy_pairs_filename
@@ -328,7 +328,7 @@ def prepare_relevant_aggregates(remove_outliers, with_pairs):
             feature_1_value, feature_2_value, feature_1_id, feature_2_id, count, clicks, sales = entry
             entries_indices = list(
                 np.where((entries[f"hash_{int(feature_1_id)}"] == int(feature_1_value)) & (
-                        entries[f"hash_{int(feature_2_id)}"] == int(feature_2_value)))[0])
+                    entries[f"hash_{int(feature_2_id)}"] == int(feature_2_value)))[0])
             if len(entries_indices):
                 relevant_pairs_writer.writerow(entry)
         observations_pairs_source_file.close()
@@ -340,9 +340,9 @@ def prepare_observations(normalize_ctr: Callable, min_count: float = None, filen
     prepare_criteo_dataset(remove_outliers)
     prepare_relevant_aggregates(remove_outliers, with_pairs)
     observations_single_source = prepared_dirpath + \
-                                 relevant_aggregated_noisy_singles_filename
+        relevant_aggregated_noisy_singles_filename
     observations_pairs_source = prepared_dirpath + \
-                                relevant_aggregated_noisy_pairs_filename
+        relevant_aggregated_noisy_pairs_filename
     observations_destination = prepared_dirpath + f"/{filename}.csv"
     if not force and not os.path.exists(observations_destination):
         return
@@ -384,7 +384,7 @@ def prepare_observations(normalize_ctr: Callable, min_count: float = None, filen
             ctr = normalize_ctr(float(clicks), float(count), EPS)
             entries_indices = list(
                 np.where((entries[f"hash_{int(feature_1_id)}"] == int(feature_1_value)) & (
-                        entries[f"hash_{int(feature_2_id)}"] == int(feature_2_value)))[0])
+                    entries[f"hash_{int(feature_2_id)}"] == int(feature_2_value)))[0])
             if len(entries_indices):
                 if min_count is not None and float(count) < min_count:
                     removed_count_pairs += 1
@@ -469,16 +469,19 @@ class CriteoDataGraph(nx.DiGraph):
     @staticmethod
     def probability(individual_count: int, sum_count: float, mean_count: float, no_objects: int, eps: np.float64 = np.float64(1e-20)):
         return (np.float64(individual_count) + np.float64(mean_count) + eps) / (
-                np.float64(sum_count) + (np.float64(no_objects) * np.float64(mean_count)) + eps)
+            np.float64(sum_count) + (np.float64(no_objects) * np.float64(mean_count)) + eps)
 
-    def get_probabilities_for(self, objects, from_objects=None):
+    def get_probabilities_for(self, objects, from_objects=None, attr="count", cattr=None):
         if from_objects is None:
             from_objects = objects
-        objects_counts = [float(from_objects[obj]["count"]) for obj in objects]
+        objects_counts = [float(from_objects[obj][attr]) for obj in objects]
         if len(objects_counts) == 0:
             print("something went terribly wrong")
             exit(1)
         sum_count = sum(objects_counts)
+        if cattr is not None:
+            sum_count = sum([float(from_objects[obj][cattr])
+                            for obj in objects])
         mean_count = mean(objects_counts)
         return np.array(
             [self.probability(individual_count, sum_count, mean_count, len(objects_counts)) for individual_count in
@@ -493,20 +496,34 @@ class CriteoDataGraph(nx.DiGraph):
         for node in to_delete:
             self.remove_node(node)
         del to_delete
+
     def assign_probabilities(self):
         node_probabilities = {}
         edge_probabilities = {}
-        nprobs = self.get_probabilities_for(self.nodes())
-        for node, prob in tqdm(zip(self.nodes(), nprobs), total=self.number_of_nodes(), desc="Assigning probabilities"):
+        nprobs = self.get_probabilities_for(self.nodes(), attr="count")
+        for node, prob in tqdm(zip(self.nodes(), nprobs), total=self.number_of_nodes(), desc="Assigning probabilities count"):
             node_probabilities[node] = prob
-            edge_probs = self.get_probabilities_for(self.edges(node), self.edges())
+            edge_probs = self.get_probabilities_for(
+                self.edges(node), self.edges(), attr="count")
             for edge, eprob in zip(self.edges(node), edge_probs):
                 edge_probabilities[edge] = eprob
-        del nprobs
-        nx.set_node_attributes(self, node_probabilities, name="prob")
+        nx.set_node_attributes(self, node_probabilities, name="ct_prob")
         del node_probabilities
-        nx.set_edge_attributes(self, edge_probabilities, name="prob")
+        nx.set_edge_attributes(self, edge_probabilities, name="ct_prob")
         del edge_probabilities
+        del nprobs
+        nprobs = self.get_probabilities_for(self.nodes(), attr="clicks")
+        for node, prob in tqdm(zip(self.nodes(), nprobs), total=self.number_of_nodes(), desc="Assigning probabilities clicks"):
+            node_probabilities[node] = prob
+            edge_probs = self.get_probabilities_for(self.edges(
+                node), self.edges(), attr="clicks", cattr="count")
+            for edge, eprob in zip(self.edges(node), edge_probs):
+                edge_probabilities[edge] = eprob
+        nx.set_node_attributes(self, node_probabilities, name="cl_prob")
+        del node_probabilities
+        nx.set_edge_attributes(self, edge_probabilities, name="cl_prob")
+        del edge_probabilities
+        del nprobs
 
     def create_nodes(self):
         def iteration(entry):
@@ -522,8 +539,10 @@ class CriteoDataGraph(nx.DiGraph):
             feature_1_value, feature_2_value, feature_1_id, feature_2_id, count, nb_clicks, nb_sales = entry
             node_a = f"attr_{int(feature_1_id)}_val_{feature_1_value}"
             node_b = f"attr_{int(feature_2_id)}_val_{feature_2_value}"
-            self.add_edge(node_a, node_b, count=float(count), clicks=float(nb_clicks), sales=float(nb_sales))
-            self.add_edge(node_b, node_a, count=float(count), clicks=float(nb_clicks), sales=float(nb_sales))
+            self.add_edge(node_a, node_b, count=float(count),
+                          clicks=float(nb_clicks), sales=float(nb_sales))
+            self.add_edge(node_b, node_a, count=float(count),
+                          clicks=float(nb_clicks), sales=float(nb_sales))
 
         for_entry_in_csv_file(raw_dirpath + aggregated_noisy_pairs_filename, execute=iteration,
                               description="Processing pair-attribute aggregates")
@@ -533,3 +552,9 @@ class CriteoDataGraph(nx.DiGraph):
         self.create_edges()
         self.remove_unreachable_nodes()
         self.assign_probabilities()
+        clicks_sum = 0
+        count_sum = 0
+        for node in self.nodes():
+            clicks_sum += np.float64(self.nodes()[node]["clicks"])
+            count_sum += np.float64(self.nodes()[node]["count"])
+        self.global_z_prob = clicks_sum / count_sum
