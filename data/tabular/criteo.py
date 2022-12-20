@@ -512,7 +512,10 @@ class CriteoDataGraph(nx.DiGraph):
         nx.set_edge_attributes(self, edge_probabilities, name="ct_prob")
         del edge_probabilities
         del nprobs
-        nprobs = self.get_probabilities_for(self.nodes(), attr="clicks")
+        node_probabilities = {}
+        edge_probabilities = {}
+        nprobs = self.get_probabilities_for(
+            self.nodes(), attr="clicks", cattr="count")
         for node, prob in tqdm(zip(self.nodes(), nprobs), total=self.number_of_nodes(), desc="Assigning probabilities clicks"):
             node_probabilities[node] = prob
             edge_probs = self.get_probabilities_for(self.edges(
