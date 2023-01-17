@@ -41,6 +41,35 @@ def plot_xy(data_x: torch.tensor, expected_y: torch.tensor, series: list[dict], 
     fig.show()
 
 
+def plot_xy3d(data_x: torch.tensor, expected_y: torch.tensor, series: list[dict], value_func: Callable = None):
+    fig = plt.figure(figsize=PLOTSIZE)
+    ax = fig.add_subplot(projection='3d')
+    DETAIL = 15
+    if value_func is not None:
+        x = np.array([x[0] for x in data_x.numpy()])
+        x_min, x_max = [np.min(x), np.max(x)]
+        x_lin = np.linspace(x_min, x_max, DETAIL)
+        y = np.array([], dtype=float)
+        for y_ in x_lin:
+            y = np.concatenate((y, np.array(list(map(lambda x: value_func([x, y_])[0], x_lin)))))
+        x1, x2 = np.meshgrid(x_lin, x_lin)
+        y = y.reshape((DETAIL, DETAIL))
+        ax.contour(x1, x2, y, zdir='z', offset=0)
+        ax.contour(x1, x2, y, zdir='x', offset=10)
+        ax.contour(x1, x2, y, zdir='y', offset=10)
+    for s in series:
+        ax.scatter(s["data_x"][:, 0], s["data_x"][:, 1], 0,
+                   label=s["label"], marker=s["marker"])
+        ax.scatter(10, s["data_x"][:, 1], s["data_y"][:, 0],
+                   label=s["label"], marker=s["marker"])
+        ax.scatter(s["data_x"][:, 0], 10, s["data_y"][:, 0],
+                   label=s["label"], marker=s["marker"])
+    ax.set_xlabel('x[0]')
+    ax.set_ylabel('x[1]')
+    ax.set_zlabel('z')
+    fig.show()
+
+
 def plot_roc(targets, predictions, title):
     fig, ax = plt.subplots(figsize=PLOTSIZE)
     fpr, tpr, _ = metrics.roc_curve(

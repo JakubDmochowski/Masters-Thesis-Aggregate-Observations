@@ -18,13 +18,14 @@ torch.manual_seed(RANDOM_SEED)
 # global variables
 NUM_OBSERVATIONS = 50
 BATCH_SIZE = 32
-NUM_ITERS = 500
+NUM_ITERS = 1000
 VALIDATION_SPLIT = 0.2
 TEST_SPLIT = 0.1
 VALIDATE_EVERY_K_ITERATIONS = 5
 USE_TABULAR_DATA = True
 LEARNING_RATE = 0.001
 LOSS = torch.nn.functional.mse_loss
+AGG_LOSS = torch.nn.functional.nll_loss
 USE_WEIGHT = True
 if USE_TABULAR_DATA is True:
     if USE_WEIGHT is True:
@@ -97,7 +98,7 @@ for iterIndex in trange(NUM_ITERS):
     aggregate_loss = aggregate_model.train(dataset=data_train,
                                            optimizer=optim.Adam(
                                                aggregate_model.parameters(), lr=LEARNING_RATE),
-                                           loss=LOSS,
+                                           loss=AGG_LOSS,
                                            batch_size=BATCH_SIZE)
     loss_history.append(
         {'standard': standard_loss, 'aggregate': aggregate_loss})
@@ -145,14 +146,25 @@ else:
     targets = observation_subset_for(data=expected_y, dataset=data_validate)
     prediction_data = [
         {
-            "label": 'standard model',
-            "prediction_history": standard_prediction_history,
+            "label": 'uczenie Zhanga',
+            "prediction_history": aggregate_prediction_history,
         },
         {
-            "label": 'aggregate model',
-            "prediction_history": aggregate_prediction_history,
+            "label": 'uczenie standardowe',
+            "prediction_history": standard_prediction_history,
         }
     ]
+    test_prediction_data = [
+        {
+            "label": 'uczenie Zhanga',
+            "prediction_history": [aggregate_predictions],
+        },
+        {
+            "label": 'uczenie standardowe',
+            "prediction_history": [standard_predictions],
+        }
+    ]
+    test_targets = observation_subset_for(data=expected_y, dataset=data_test)
     plot_auc(prediction_data, targets,
              every=VALIDATE_EVERY_K_ITERATIONS)
     plot_precision(prediction_data, targets,
@@ -160,5 +172,6 @@ else:
     plot_recall(prediction_data, targets,
                 every=VALIDATE_EVERY_K_ITERATIONS)
     plot_confusion_matrix(prediction_data, targets)
+    plot_confusion_matrix(test_prediction_data, test_targets)
 
 input("Press Enter to continue...")

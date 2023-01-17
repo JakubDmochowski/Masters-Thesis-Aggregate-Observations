@@ -117,17 +117,17 @@ class XBNETRegressor(torch.nn.Module):
          :param num_layers_boosted(int,optional): Number of layers to be boosted in the neural network. Default value: 1
     '''
 
-    def __init__(self, X_values, y_values, num_layers, num_layers_boosted=1):
+    def __init__(self, dataset: Dataset, layers_raw: list[dict], num_layers_boosted=1):
         super(XBNETRegressor, self).__init__()
         self.name = "Regression"
         self.layers = OrderedDict()
         self.boosted_layers = {}
-        self.num_layers = num_layers
         self.num_layers_boosted = num_layers_boosted
-        self.X = X_values
-        self.y = y_values
+        self.layers_raw = layers_raw
 
-        self.take_layers_dim()
+        self.X = observation_subset_for(data=dataset.data_x, dataset=dataset)
+        self.y = observation_subset_for(data=dataset.data_y, dataset=dataset)
+        self.prepare_model(dataset)
         self.base_tree()
 
         self.layers[str(0)].weight = torch.nn.Parameter(
@@ -147,31 +147,32 @@ class XBNETRegressor(torch.nn.Module):
         '''
         self.l = l
 
-    def take_layers_dim(self):
-        '''
-        Creates the neural network by taking input from the user
-        '''
-        print("Enter dimensions of linear layers: ")
-        for i in range(self.num_layers):
-            inp = int(
-                input("Enter input dimensions of layer " + str(i + 1) + ": "))
-            out = int(
-                input("Enter output dimensions of layer " + str(i + 1) + ": "))
-            set_bias = bool(input("Set bias as True or False: "))
-            self.layers[str(i)] = torch.nn.Linear(inp, out, bias=set_bias)
-            if i == 0:
-                self.input_out_dim = out
-            self.labels = out
-
-        print("Enter your last layer ")
-        self.ch = int(input("1. Sigmoid \n2. Softmax \n3. None \n"))
-        if self.ch == 1:
-            self.layers[str(self.num_layers)] = torch.nn.Sigmoid()
-        elif self.ch == 2:
-            dimension = int(input("Enter dimension for Softmax: "))
-            self.layers[str(self.num_layers)] = torch.nn.Softmax(dim=dimension)
-        else:
-            pass
+    def prepare_model(self, dataset):
+        self.input_nodes = len(dataset.data_x[0])
+        self.output_nodes = len(dataset.data_y[0])
+        print(f"input_nodes: {self.input_nodes}")
+        print(f"output_nodes: {self.output_nodes}")
+        layers = []
+        for index, layer in enumerate(self.layers_raw):
+            currlayer = layer
+            prevlayer = self.layers_raw[index - 1]
+            if not index:
+                layers.append(torch.nn.Linear(
+                    self.input_nodes, currlayer['nodes'], bias=currlayer['bias']))
+            else:
+                layers.append(torch.nn.Linear(
+                    prevlayer['nodes'], currlayer['nodes'], bias=currlayer['bias']))
+            if currlayer['nlin']:
+                layers.append(currlayer['nlin'])
+            if currlayer['norm']:
+                layers.append(torch.nn.BatchNorm1d(currlayer['nodes']))
+            if currlayer['drop']:
+                layers.append(torch.nn.Dropout(0.2))
+        layers.append(torch.nn.Linear(
+            self.layers_raw[len(self.layers_raw) - 1]['nodes'], self.output_nodes, bias=True))
+        for index, layer in enumerate(layers):
+            self.layers[str(index)] = layer
+        self.layers[str(len(layers))] = torch.nn.Softmax(dim=1)
 
     def base_tree(self):
         '''
@@ -180,7 +181,7 @@ class XBNETRegressor(torch.nn.Module):
         '''
         self.temp1 = XGBRegressor().fit(self.X, self.y).feature_importances_
         self.temp = self.temp1
-        for i in range(1, self.input_out_dim):
+        for i in range(1, self.layers_raw[0]['nodes']):
             self.temp = np.column_stack((self.temp, self.temp1))
 
     def forward(self, x, train=True):

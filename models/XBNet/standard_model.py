@@ -23,12 +23,13 @@ class StandardModel(Model):
             len(dataset.observations), size=batch_size)
         observations_batch = np.array(
             dataset.observations).take(data_y_batch_indices)
-        data_x_batch_indices = list(
-            chain(*[obs.entries_indices for obs in observations_batch]))
+        data_x_batch_indices = np.random.choice(len(dataset.data_x),
+                                                size=sum([obs.length for obs in observations_batch]))
+        # data_x_batch_indices = list(
+        #     chain(*[obs.entries_indices for obs in observations_batch]))
 
         x_batch = dataset.data_x[data_x_batch_indices]
         y_batch = dataset.data_y[data_x_batch_indices]
-        l = None
         inp = x_batch
         out = y_batch
         try:
@@ -37,6 +38,7 @@ class StandardModel(Model):
         except:
             pass
         self.model.get(out.float())
+        l = None
         l = loss(self.model(inp.float()), out.float())
         l.backward()
         optimizer.step()

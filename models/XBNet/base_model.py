@@ -18,8 +18,8 @@ class Model:
         Dataset.validate(dataset)
         if self.classification:
             self.model = XBNETClassifier(dataset, layers_raw=self.layers_raw)
-        # else:
-        #     self.model = XBNETRegressor(dataset, layers_raw=self.layers_raw)
+        else:
+            self.model = XBNETRegressor(dataset, layers_raw=self.layers_raw)
 
     def test(self, dataset: Dataset):
         data_x_indices = list(

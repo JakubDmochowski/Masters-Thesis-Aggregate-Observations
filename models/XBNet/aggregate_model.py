@@ -10,12 +10,21 @@ LABELS_AVAILABLE = False
 LABEL_ESTIMATE_USE_PROBABILITIES = False
 
 
+def default_aggregate_by(z: torch.tensor):
+    return z.mean(axis=0)
+
+
 class AggregateModel(Model):
-    def applyAggregateLoss(self, loss: Callable, entry_predictions: torch.tensor, observations: torch.tensor,
-                           lengths: list[int]):
+    def __init__(self, layers_raw: list[dict], classification: bool = False, aggregate_by: Callable = default_aggregate_by):
+        super().__init__(classification=classification, layers_raw=layers_raw)
+        self.aggregate_by = aggregate_by
+
+    def apply_aggregate_loss(self, loss: Callable, entry_predictions: torch.tensor, observations: torch.tensor,
+                             lengths: list[int]):
         ranges = length_to_range(lengths)
+
         predictions = torch.stack(
-            [entry_predictions[r].mean(axis=0) for r in ranges])
+            [self.aggregate_by(entry_predictions[r]) for r in ranges])
         return loss(predictions, observations) * (np.array(lengths).sum() / len(lengths))
 
     def train(self, dataset: Dataset, optimizer, loss: Callable, batch_size: int) -> None:
@@ -50,8 +59,8 @@ class AggregateModel(Model):
             else:
                 y_batch_est = np.array([])
                 for obs in observations_batch:
-                    prob_1 = dataset.obs_y[obs.value_vec_index][1]
-                    prob_0 = 1 - prob_1
+                    prob_0 = dataset.obs_y[obs.value_vec_index][0]
+                    prob_1 = 1 - prob_0
                     p = np.array([prob_0, prob_1])
                     p /= p.sum()
                     choices = [[0, 1], [1, 0]]
@@ -70,7 +79,7 @@ class AggregateModel(Model):
         except:
             pass
         self.model.get(y_batch_est.float())
-        l = self.applyAggregateLoss(
+        l = self.apply_aggregate_loss(
             loss, self.model(inp.float()), out.float(), l_batch)
         l.backward()
         optimizer.step()

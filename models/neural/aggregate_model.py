@@ -8,12 +8,20 @@ from models.neural.base_model import Model
 from typing import Callable
 
 
+def default_aggregate_by(z: torch.tensor):
+    return z.mean(axis=0)
+
+
 class AggregateModel(Model):
-    @staticmethod
-    def apply_aggregate_loss(loss: Callable, entry_predictions: torch.tensor, observations: torch.tensor, lengths: list[int]):
+    def __init__(self, classification: bool = False, aggregate_by: Callable = default_aggregate_by):
+        super().__init__(self, classification)
+        self.aggregate_by = aggregate_by
+
+    def apply_aggregate_loss(self, loss: Callable, entry_predictions: torch.tensor, observations: torch.tensor,
+                             lengths: list[int]):
         ranges = length_to_range(lengths)
         predictions = torch.stack(
-            [entry_predictions[r].mean(axis=0) for r in ranges])
+            [self.aggregate_by(entry_predictions[r]) for r in ranges])
         return loss(predictions, observations) * (np.array(lengths).sum() / len(lengths))
 
     def train(self, dataset: Dataset, optimizer, loss: Callable, batch_size: int) -> None:
