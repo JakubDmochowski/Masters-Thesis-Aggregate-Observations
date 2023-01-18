@@ -12,7 +12,7 @@ class Observation:
 
 
 class Dataset:
-    def __init__(self, data_x: torch.Tensor, data_y: torch.Tensor, obs_y: torch.Tensor, observations: list[Observation]):
+    def __init__(self, data_x: torch.Tensor, data_y: torch.Tensor, observations: list[Observation], obs_y: torch.Tensor = None):
         # data_x has shape (entries, features)
         # data_y has shape (entries, values)
         # obs_y has shape (aggregate_index, values)

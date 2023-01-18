@@ -34,9 +34,9 @@ class Path:
 
 
 class DataGenerator:
-    def __init__(self, data_graph: nx.Graph, no_attributes: int, ctr_normalize: Callable, eps: np.float64 = np.finfo(np.float64).eps):
+    def __init__(self, data_graph: nx.Graph, ctr_normalize: Callable, eps: np.float64 = np.finfo(np.float64).eps):
         self.data_graph = data_graph
-        self.no_attributes = no_attributes
+        self.no_attributes = data_graph.no_attributes
         self.eps = eps
         self.ctr_normalize = ctr_normalize
 
@@ -106,25 +106,11 @@ class DataGenerator:
         count_prob = counts[chosen_index] / sum(counts)
         return edge, [click_prob, count_prob]
 
-    # Average of probabilities for all edges and nodes
-    def expected_z_for(self, obj):
-        clicks = float(obj["clicks"])
-        sales = float(obj["sales"])
-        count = float(obj["count"])
-        return [self.ctr_normalize(clicks, count, self.eps), self.ctr_normalize(sales, count, self.eps)]
-
-    def expected_z_for_entry(self, path):
-        expected_z_aggregates = [*[self.expected_z_for(self.data_graph.edges()[edge]) for edge in path.edges],
-                                 *[self.expected_z_for(self.data_graph.nodes()[node]) for node in path.nodes],
-                                 *[self.expected_z_for(self.data_graph.nodes()[node]) for node in path.nodes]]
-        return np.array(expected_z_aggregates).mean(axis=0)
-
     def get_entry_data(self, path):
         data_x = [self.values_from_node(node) for node in path.nodes]
         data_x.sort(key=lambda x: x[0]) # sort by attribute id
         data_x = np.array(data_x)[:, 1]
-        expected_z = self.expected_z_for_entry(path)
-        return data_x, expected_z
+        return data_x
 
 
     def generate_entry(self):
@@ -132,18 +118,15 @@ class DataGenerator:
         entry_path = None
         while entry_path is None or len(entry_path) != self.no_attributes - 1:
             initial_node, chosen_index = self.get_random_from(nodes)
-            cl_init_prob = (self.get_probabilities_for(nodes, attr="cl_prob"))[chosen_index]
-            ct_init_prob = (self.get_probabilities_for(nodes, attr="ct_prob"))[chosen_index]
+            init_prob = self.data_graph.nodes()[initial_node]["clicks"] / self.data_graph.nodes()[initial_node]["count"]
 
             entry_path, probs = self.get_entry_path(initial_node)
-        expected_z = self.data_graph.global_z_prob * cl_init_prob / ct_init_prob
-        # print(cl_init_prob, ct_init_prob)
+        expected_z = init_prob
         for cl_prob, ct_prob in probs:
             expected_z = expected_z * cl_prob / ct_prob
-            # print(cl_prob, ct_prob)
-        expected_z_1 = np.array([expected_z])
-        data_x, expected_z_2 = self.get_entry_data(entry_path)
-        return data_x, expected_z_1, expected_z_2
+        expected_z = np.array([expected_z])
+        data_x = self.get_entry_data(entry_path)
+        return data_x, expected_z
 
     def generate_data(self, count: int, filename: str, force: bool = False):
         if os.path.exists(filename):

@@ -1,10 +1,11 @@
 import torch
-from data.dataset import Dataset
+from data.dataset import Dataset, Observation
 from typing import Callable
 import numpy as np
 from itertools import chain
 from sklearn.model_selection import train_test_split
 import pandas as pd
+from scipy import optimize
 
 
 def observation_subset_for(data: torch.tensor, dataset: Dataset):
@@ -27,6 +28,47 @@ def split_data(meta, test_split, validation_split, random_state):
         meta_other, test_size=validation_split / vt_size, random_state=random_state)
     return meta_train, meta_validation, meta_test
 
+
+def get_observations(data_y: torch.tensor, meta: list[Observation], aggregate: Callable, threshold: float):
+    def get_entries(indices):
+        return torch.index_select(data_y, 0, torch.tensor(indices))
+
+    obs_y = torch.stack([aggregate(get_entries(obs.entries_indices), threshold) for obs in meta]).float()
+    return obs_y
+
+
+def observation_values(data_z, obs_y: torch.tensor, observations):
+    _data_z = np.ndarray(shape=data_z.shape, dtype=np.float32)
+    for obs in observations:
+        for entry_index in obs.entries_indices:
+            _data_z[entry_index] = obs_y[obs.value_vec_index]
+    return _data_z
+
+
+def generate_independent_observations(data_z: torch.tensor, num_observations: int, num_generated: int,
+                                      aggregate: Callable, k=None) -> list[torch.tensor, list[Observation]]:
+    if num_observations >= num_generated / 2:
+        raise("Too big number of observations. Each observation must consist of minimum 2 points.")
+    # returned data_z is a tensor shaped (entries, values)
+    entry_no = len(data_z)
+    meta = np.linspace(0, entry_no, entry_no, endpoint=False, dtype=int)
+    np.random.shuffle(meta)
+    meta = np.array_split(meta, num_observations)
+    meta = [Observation(x, i) for i, x in enumerate(meta)]
+    if k is None:
+        print("Optimizing T function params for better classification")
+        def fitness(k):
+            obs_y = get_observations(data_z, meta, aggregate, k)
+            vals = observation_values(data_z, obs_y, meta)
+            return abs(np.count_nonzero(vals > 0.5) - (num_generated / 2))
+
+        optimal = optimize.brute(fitness, ranges=[slice(0.01, 2, 0.01)], full_output=True)
+        # search for such "k", for which the proportion of "0" to "1" labels is possibly close to initial data
+        k = optimal[0][0]
+    obs_y = get_observations(data_z, meta, aggregate, k)
+    return obs_y, meta, k
+
+
 def aggregate_on_features(labels, features, mincount, data):
     df = data[labels + features]
     df["c"] = 1
@@ -34,11 +76,12 @@ def aggregate_on_features(labels, features, mincount, data):
     df = df[df.c > mincount].copy()
     return df
 
+
 def aggregate_on_all_pairs(
-    allfeatures,
-    data,
-    mincount=0,
-    gaussian_sigma=None,
+        allfeatures,
+        data,
+        mincount=0,
+        gaussian_sigma=None,
 ):
     allpairsdf = pd.DataFrame()
     for f0 in allfeatures:
@@ -65,8 +108,9 @@ def aggregate_on_all_pairs(
         allpairsdf["clicks"] += np.random.normal(0, gaussian_sigma, len(allpairsdf))
     return allpairsdf
 
+
 def aggregate_on_all_single(
-    allfeatures, data, mincount=0, gaussian_sigma=None
+        allfeatures, data, mincount=0, gaussian_sigma=None
 ):
     allpairsdf = pd.DataFrame()
     for f0 in allfeatures:

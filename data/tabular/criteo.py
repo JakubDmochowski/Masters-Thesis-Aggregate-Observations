@@ -465,6 +465,7 @@ def for_entry_in_csv_file(fpath: str, execute: Callable, description: str = "Pro
 class CriteoDataGraph(nx.DiGraph):
     def __init__(self):
         super().__init__(self)
+        self.no_attributes = 19
 
     @staticmethod
     def probability(individual_count: int, sum_count: float, mean_count: float, no_objects: int, eps: np.float64 = np.float64(1e-20)):
