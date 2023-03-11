@@ -1,14 +1,12 @@
 import csv
 import numpy as np
-import pandas as pd
 from sklearn.model_selection import train_test_split
 import os
 from data.data_generator import DataGenerator
 from models.XBNet.aggregate_model import AggregateModel
 from data.dataset import Dataset, Observation
-from data.tabular.breast_cancer_2 import retrieve_data, get_weights, get_raw_data, encode_x, encode_y, \
-    BreastCancerDataGraph, get_encoded_data
-from data.data_utils import observation_subset_for, split_data, generate_independent_observations
+from data.tabular.breast_cancer_2 import get_weights, BreastCancerDataGraph, get_encoded_data
+from data.data_utils import observation_subset_for, generate_independent_observations
 import torch
 from torch import optim
 from tqdm import trange, tqdm
@@ -23,25 +21,29 @@ torch.manual_seed(RANDOM_SEED)
 # global variables
 NUM_OBSERVATIONS = 100
 BATCH_SIZE = 6
-NUM_ITERS = 1000
-VALIDATION_SPLIT = 0.2
-TEST_SPLIT = 0.1
+NUM_ITERS = 5000
 VALIDATE_EVERY_K_ITERATIONS = 5
 LEARNING_RATE = 0.0005
 
+WEIGHTS = torch.tensor(get_weights(normalize=False), dtype=torch.float)
 
-def loss(predictions, observations):
+
+def weighted_nll_loss(predictions, observations):
     return torch.nn.functional.nll_loss(torch.log(predictions + torch.finfo(torch.float64).eps),
-                                        torch.argmax(observations, dim=1),
-                                        weight=torch.tensor(get_weights(), dtype=torch.float))
+                                        torch.argmax(observations, dim=1), weight=WEIGHTS)
 
 
-LOSS = loss
+def unweighted_nll_loss(predictions, observations):
+    return torch.nn.functional.nll_loss(torch.log(predictions + torch.finfo(torch.float64).eps),
+                                        torch.argmax(observations, dim=1))
+
+
+LOSS = weighted_nll_loss
 CLASSIFICATION = False
 
 FORCE_NEW_GENERATION = False
 NUM_GENERATED = 1000
-NUM_GEN_OBSERVATIONS = 200
+NUM_GEN_OBSERVATIONS = 100
 
 generated_data_file_path = os.getcwd() + '\\gen_tabular_generated.csv'
 
@@ -79,6 +81,7 @@ for x, z in data_file_reader:
 gen_data_z = torch.tensor(np.array(gen_data_z))
 gen_data_x = torch.tensor(np.array(gen_data_x))
 
+
 def aggregate_pow(z: torch.tensor, k):
     return torch.pow(z.mean(axis=0), torch.tensor(k))
 
@@ -93,14 +96,14 @@ gen_obs_y, gen_meta, k = generate_independent_observations(gen_data_z, NUM_GEN_O
 def T(z):
     return aggregate_pow(z, k)
 
+
 # for testing/validation purposes only
 data_x, data_z = get_encoded_data()
 #
 
 if len(gen_data_z[0]) == 1:
-    gen_obs_y = torch.tensor(np.array(list(map(lambda x: [1-x[0], x[0]], gen_obs_y)), dtype=np.float64))
-    gen_data_z = torch.tensor(np.array(list(map(lambda x: [1-x[0], x[0]], gen_data_z)), dtype=np.float64))
-    data_z = torch.tensor(np.array(list(map(lambda x: [1-x[0], x[0]], data_z)), dtype=np.float64))
+    gen_obs_y = torch.tensor(np.array(list(map(lambda x: [1 - x[0], x[0]], gen_obs_y)), dtype=np.float64))
+    gen_data_z = torch.tensor(np.array(list(map(lambda x: [1 - x[0], x[0]], gen_data_z)), dtype=np.float64))
 
 data_train = Dataset(data_x=gen_data_x, data_y=gen_data_z,
                      obs_y=gen_obs_y, observations=gen_meta)

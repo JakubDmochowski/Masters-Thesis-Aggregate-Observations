@@ -9,7 +9,6 @@ from data.tabular.criteo import retrieve_data, CriteoDataGraph
 from data.ctr_normalize import CTRNormalize
 from data.data_utils import split_data
 import torch
-from plot_utils import show_statistics
 
 
 RANDOM_SEED = 2022
@@ -77,5 +76,24 @@ else:
     aggregate_model.save(MODEL_TYPE, AGGREGATE_MODEL_KEY)
     standard_model.save(MODEL_TYPE, STANDARD_MODEL_KEY)
 
-show_statistics(data={ "label": "test", "data": data_test}, models=[{ "label": "aggregate", "data": aggregate_model}, {"label": "standard", "data": standard_model}])
-input("Press Enter to continue...")
+# models -> list of objects { "label": ... (string), "model": ... (Model) }
+# data -> object { "label": ... (string), "data": ... (Dataset) }
+# statistics -> previous state of statistics figures
+# def show_statistics(data, models, statistics=None):
+#     statistics = statistics if statistics is not None else []
+#     if len(statistics) == 0:
+#         statistics.append(plt.figure(figsize=PLOTSIZE_SM))
+#         statistics[0].suptitle(f"{data['label']} confusion matrix")
+#     prediction_data = []
+#     for entry in models:
+#         label = entry["label"]
+#         model = entry["data"]
+#         data_x, predictions = model.test(
+#             dataset=data["data"])
+#         prediction_data.append(
+#             {"label": f"{label} model", "prediction_history": predictions})
+#     targets = observation_subset_for(data=data.data_y, dataset=data)
+#     return plot_confusion_matrix(prediction_data, targets, statistics[0])
+#
+# show_statistics(data={ "label": "test", "data": data_test}, models=[{ "label": "aggregate", "data": aggregate_model}, {"label": "standard", "data": standard_model}])
+# input("Press Enter to continue...")

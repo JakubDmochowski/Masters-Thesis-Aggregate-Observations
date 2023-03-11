@@ -2,19 +2,22 @@ import torch
 from data.dataset import Dataset
 import numpy as np
 from itertools import chain
-from typing import Callable
-from aggregate_utils import length_to_range
+from data.aggregate_utils import length_to_range
 from models.neural.base_model import Model
 from typing import Callable
 
 
-def default_aggregate_by(z: torch.tensor):
+def aggregate_mean(z: torch.tensor):
     return z.mean(axis=0)
+
+
+def default_aggregate_by(z: torch.tensor):
+    return aggregate_mean(z)
 
 
 class AggregateModel(Model):
     def __init__(self, classification: bool = False, aggregate_by: Callable = default_aggregate_by):
-        super().__init__(self, classification)
+        super().__init__(classification=classification)
         self.aggregate_by = aggregate_by
 
     def apply_aggregate_loss(self, loss: Callable, entry_predictions: torch.tensor, observations: torch.tensor,

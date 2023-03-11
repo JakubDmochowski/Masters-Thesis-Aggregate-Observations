@@ -25,7 +25,19 @@ VALIDATE_EVERY_K_ITERATIONS = 5
 USE_TABULAR_DATA = True
 LEARNING_RATE = 0.001
 LOSS = torch.nn.functional.mse_loss
-AGG_LOSS = torch.nn.functional.nll_loss
+#
+# WEIGHTS = torch.tensor(get_weights(normalize=False), dtype=torch.float)
+#
+# def weighted_nll_loss(predictions, observations):
+#     return torch.nn.functional.nll_loss(torch.log(predictions + torch.finfo(torch.float64).eps),
+#                                         torch.argmax(observations, dim=1), weight=WEIGHTS)
+#
+# def unweighted_nll_loss(predictions, observations):
+#     return torch.nn.functional.nll_loss(torch.log(predictions + torch.finfo(torch.float64).eps), torch.argmax(observations, dim=1))
+#
+#
+#
+# AGG_LOSS = weighted_nll_loss
 USE_WEIGHT = True
 if USE_TABULAR_DATA is True:
     if USE_WEIGHT is True:
@@ -78,12 +90,16 @@ data_validate = Dataset(
 layers_raw = [{'nodes': 32, 'nlin': torch.nn.ReLU(inplace=True), 'norm': False, 'bias': True, 'drop': False},
               {'nodes': 20, 'nlin': torch.nn.ReLU(inplace=True), 'norm': True, 'bias': True, 'drop': False}]
 
+def aggregate_mean(entries: torch.tensor):
+    return entries.mean(axis=0)
+
+
 loss_history = []
 standard_model = StandardModel(
     classification=CLASSIFICATION, layers_raw=layers_raw)
 standard_model.get_model_for(data_train)
 aggregate_model = AggregateModel(
-    classification=CLASSIFICATION, layers_raw=layers_raw)
+    classification=CLASSIFICATION, layers_raw=layers_raw, aggregate_by=aggregate_mean)
 aggregate_model.get_model_for(data_train)
 
 aggregate_prediction_history = []
@@ -98,10 +114,10 @@ for iterIndex in trange(NUM_ITERS):
     aggregate_loss = aggregate_model.train(dataset=data_train,
                                            optimizer=optim.Adam(
                                                aggregate_model.parameters(), lr=LEARNING_RATE),
-                                           loss=AGG_LOSS,
+                                           loss=LOSS,
                                            batch_size=BATCH_SIZE)
     loss_history.append(
-        {'standard': standard_loss, 'aggregate': aggregate_loss})
+        {'uczenie Zhanga': aggregate_loss, 'uczenie standardowe': standard_loss})
 
     if not iterIndex % VALIDATE_EVERY_K_ITERATIONS:
         with torch.no_grad():
@@ -128,13 +144,13 @@ if USE_TABULAR_DATA is False:
             "data_y": expected_y
         },
         {
-            "label": "standard_prediction",
+            "label": "uczenie standardowe",
             "marker": "o",
             "data_x": data_x_s,
             "data_y": standard_predictions
         },
         {
-            "label": "aggregate_prediction",
+            "label": "uczenie Zhanga",
             "marker": "^",
             "data_x": data_x_a,
             "data_y": aggregate_predictions

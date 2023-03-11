@@ -1,8 +1,13 @@
 import numpy as np
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 from typing import Callable
 import torch
+from matplotlib.figure import Figure
 from sklearn import metrics
+
+from data.data_utils import observation_subset_for
+from data.dataset import Dataset
 
 PLOTSIZE = (6, 6)
 PLOTSIZE_SM = (4, 4)
@@ -15,28 +20,36 @@ def plot_losses(loss_history: list[list[float]]):
     for model in models:
         history = [losses[model].detach().numpy() for losses in loss_history]
         ax.plot(x, history, label=model)
-    ax.set_xlabel('iteration')
-    ax.set_ylabel('loss')
+    ax.set_xlabel('epoka')
+    ax.set_ylabel('strata')
     ax.legend()
     plt.yscale("log")
     fig.show()
 
 
-def plot_xy(data_x: torch.tensor, expected_y: torch.tensor, series: list[dict], value_func: Callable = None):
+def plot_xy(data_x: torch.tensor, expected_y: torch.tensor, series: list[dict], value_func: Callable = None,
+            dim: int = 0):
     fig, ax = plt.subplots(figsize=PLOTSIZE)
-    if value_func is not None:
-        x = np.array([x[0] for x in data_x.numpy()])
-        expected_y = np.array([y[0] for y in expected_y.numpy()])
-        x_min, x_max = [np.min(x), np.max(x)]
-        x_lin = np.linspace(x_min, x_max, 500)
-        y_lin = list(map(lambda x: value_func([x]), x_lin))
-        ax.plot(x_lin, y_lin, color="k",
-                linewidth=3, label="value_func")
-    for s in series:
-        ax.scatter(s["data_x"], s["data_y"],
-                   label=s["label"], marker=s["marker"])
-    ax.set_xlabel('x')
-    ax.set_ylabel('y')
+    if dim >= 0:
+        if value_func is not None:
+            x = np.array([x[0] for x in data_x.numpy()])
+            expected_y = np.array([y[0] for y in expected_y.numpy()])
+            x_min, x_max = [np.min(x), np.max(x)]
+            x_lin = np.linspace(x_min, x_max, 500)
+            y_lin = list(map(lambda x: value_func([x]), x_lin))
+            ax.plot(x_lin, y_lin, color="k",
+                    linewidth=3, label="Funkcja testowa")
+        for s in series:
+            ax.scatter(s["data_x"][:, dim], s["data_y"][:, 0],
+                       label=s["label"], marker=s["marker"])
+        ax.set_xlabel(f"x{dim}")
+        ax.set_ylabel('z')
+    else:
+        for s in series:
+            ax.scatter(s["data_x"][:, 0], s["data_x"][:, 1],
+                       label=s["label"], marker=s["marker"])
+        ax.set_xlabel('x0')
+        ax.set_ylabel('x1')
     ax.legend()
     fig.show()
 
@@ -90,9 +103,8 @@ def plot_auc(models, targets, every):
                 targets.reshape(-1), predictions.reshape(-1))])
         auc_history = np.array(auc_history)
         ax.plot(auc_history[:, 0], auc_history[:, 1], label=model["label"])
-    ax.set_xlabel('iteration')
-    ax.set_ylabel('AUC Score')
-    ax.set_title(f"AUC")
+    ax.set_xlabel('epoka')
+    ax.set_ylabel('AUC')
     ax.legend()
     fig.show()
 
@@ -148,3 +160,4 @@ def plot_confusion_matrix(models, targets):
             targets[:, 0].reshape(-1), predictions[:, 0].reshape(-1), ax=ax)
         ax.set_title(model["label"])
         fig.show()
+    return fig

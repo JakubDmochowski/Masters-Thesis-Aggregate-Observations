@@ -21,7 +21,6 @@ class XBNETClassifier(torch.nn.Module):
     def __init__(self, dataset: Dataset, layers_raw: list[dict], num_layers_boosted=3):
         super(XBNETClassifier, self).__init__()
         self.name = "Classification"
-        self.classification = True
         self.layers = OrderedDict()
         self.boosted_layers = {}
         self.num_layers_boosted = num_layers_boosted
@@ -60,29 +59,20 @@ class XBNETClassifier(torch.nn.Module):
             if not index:
                 layers.append(torch.nn.Linear(
                     self.input_nodes, currlayer['nodes'], bias=currlayer['bias']))
-                if currlayer['nlin']:
-                    layers.append(currlayer['nlin'])
-                if currlayer['norm']:
-                    layers.append(torch.nn.BatchNorm1d(currlayer['nodes'])),
-                if currlayer['drop']:
-                    layers.append(torch.nn.Dropout(0.2)),
             else:
                 layers.append(torch.nn.Linear(
                     prevlayer['nodes'], currlayer['nodes'], bias=currlayer['bias']))
-                if currlayer['nlin']:
-                    layers.append(currlayer['nlin'])
-                if currlayer['norm']:
-                    layers.append(torch.nn.BatchNorm1d(currlayer['nodes'])),
-                if currlayer['drop']:
-                    layers.append(torch.nn.Dropout(0.2)),
+            if currlayer['nlin']:
+                layers.append(currlayer['nlin'])
+            if currlayer['norm']:
+                layers.append(torch.nn.BatchNorm1d(currlayer['nodes']))
+            if currlayer['drop']:
+                layers.append(torch.nn.Dropout(0.2))
         layers.append(torch.nn.Linear(
             self.layers_raw[len(self.layers_raw) - 1]['nodes'], self.output_nodes, bias=True))
         for index, layer in enumerate(layers):
             self.layers[str(index)] = layer
-        if self.classification is True:
-            self.layers[str(len(layers))] = torch.nn.Softmax(dim=1)
-       # self.layers = torch.nn.Sequential(
-        #     self.layers, torch.nn.Softmax(dim=1))
+        self.layers[str(len(layers))] = torch.nn.Softmax(dim=1)
 
     def base_tree(self):
         '''
@@ -93,7 +83,6 @@ class XBNETClassifier(torch.nn.Module):
         self.temp = self.temp1
         for i in range(1, self.layers_raw[0]['nodes']):
             self.temp = np.column_stack((self.temp, self.temp1))
-        # print(self.temp)
 
     def forward(self, x, train=True):
         x = self.sequential(x, self.l, train)

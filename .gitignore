@@ -162,3 +162,6 @@ cython_debug/
 # Executable helpers
 runAll.bat
 StartAll.lnk
+
+research_results
+presentation_example.ipynb

@@ -38,7 +38,6 @@ class StandardModel(Model):
         except:
             pass
         self.model.get(out.float())
-        l = None
         l = loss(self.model(inp.float()), out.float())
         l.backward()
         optimizer.step()

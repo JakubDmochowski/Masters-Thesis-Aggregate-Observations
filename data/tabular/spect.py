@@ -10,65 +10,29 @@ import networkx as nx
 from statistics import mean
 from tqdm import tqdm
 
-filepath = os.getcwd() + "/datasets/breast-cancer-2/breast-cancer.data"
-CSV_COLUMNS = ["id", "diagnosis", "radius_mean", "texture_mean", "perimeter_mean", "area_mean", "smoothness_mean",
-               "compactness_mean", "concavity_mean", "concave points_mean", "symmetry_mean", "fractal_dimension_mean",
-               "radius_se", "texture_se", "perimeter_se", "area_se", "smoothness_se",
-               "compactness_se", "concavity_se", "concave points_se", "symmetry_se", "fractal_dimension_se",
-               "radius_worst", "texture_worst", "perimeter_worst", "area_worst", "smoothness_worst",
-               "compactness_worst", "concavity_worst", "concave points_worst", "symmetry_worst",
-               "fractal_dimension_worst"]
-FEATURES = CSV_COLUMNS[2:-1]
-LABELS = CSV_COLUMNS[1]
+train_file = os.getcwd() + "/datasets/spect/SPECT.train"
+test_file = os.getcwd() + "/datasets/spect/SPECT.test"
 
 
-def encode_x(entries: pd.DataFrame) -> torch.tensor:
-    return torch.tensor(entries.to_numpy()).float()
+def encode_data(contents):
+    data_x_slc = list(range(contents.shape[1]))
+    data_x_slc.remove(0)
+    data_x = contents[data_x_slc].to_numpy()
+    data_y = contents[0].to_numpy().reshape(-1, 1)
+    return data_x, data_y
 
 
-def encode_y(entries: pd.DataFrame) -> torch.tensor:
-    ce_be = ce.BinaryEncoder(cols=['diagnosis'])
-    entries = ce_be.fit_transform(entries)
-    return torch.tensor(entries.to_numpy()).float()
+def get_training_data():
+    return encode_data(pd.read_csv(train_file, header=None))
 
 
-def get_raw_data() -> list[torch.tensor, torch.tensor]:
-    contents = pd.read_csv(filepath, header=None)
-    contents.columns = CSV_COLUMNS
-    data_x = contents[contents.columns[2:-1]]
-    data_y = contents[contents.columns[1]]
-    return [data_x, data_y]
+def get_testing_data():
+    return encode_data(pd.read_csv(test_file, header=None))
 
-
-def get_encoded_data() -> list[torch.tensor, torch.tensor]:
-    data_x, data_y = get_raw_data()
-    return encode_x(data_x), encode_y(data_y)
-
-
-def retrieve_data(num_observations: int) -> list[torch.tensor, torch.tensor, torch.tensor, list[Observation]]:
-    data_x, data_y = get_encoded_data()
-    obs_y, meta = generate_observations(data_y, num_observations)
-    return [data_x, data_y, obs_y, meta]
-
-
-def generate_observations(data_y: torch.tensor, num_observations: int) -> list[torch.tensor, list[Observation]]:
-    # returned data_y is a tensor shaped (entries, values)
-    entry_no = len(data_y)
-    meta = np.linspace(0, entry_no, entry_no, endpoint=False, dtype=int)
-    np.random.shuffle(meta)
-    meta = np.array_split(meta, num_observations)
-    meta = [Observation(y, i) for i, y in enumerate(meta)]
-    obs_y = torch.stack([torch.index_select(
-        data_y, 0, torch.tensor(obs.entries_indices)).mean(axis=0) for obs in meta]).float()
-    return [obs_y, meta]
-
-
-def get_weights(normalize=True) -> tuple[float, float]:
-    contents = pd.read_csv(filepath, header=None)
-    contents.columns = CSV_COLUMNS
-    data_y = encode_y(contents[contents.columns[1]])
-    b_count = torch.sum(data_y[:, 1])
-    a_count = len(contents[contents.columns[1]]) - b_count
+def get_weights(normalize = False):
+    data_x, data_y = get_training_data()
+    b_count = torch.sum(torch.tensor(np.array(data_y)))
+    a_count = len(data_x) - b_count
     a_weight = a_count
     b_weight = b_count
     if normalize:
@@ -77,7 +41,7 @@ def get_weights(normalize=True) -> tuple[float, float]:
     return a_weight, b_weight
 
 
-class BreastCancerDataGraph(nx.DiGraph):
+class SPECTDataGraph(nx.DiGraph):
     def __init__(self):
         super().__init__(self)
         self.no_attributes = None
@@ -165,14 +129,9 @@ class BreastCancerDataGraph(nx.DiGraph):
         return allpairsdf
 
     def get_data(self):
-        contents = pd.read_csv(filepath, header=None)
-        features = contents.columns[2:-1]
-        labels = contents.columns[1:2]
-        data_x, data_y = get_encoded_data()
-        data = pd.DataFrame()
-        for i, f in enumerate(features):
-            data[f] = np.array(data_x)[:, i]
-        data[1] = np.array(data_y)[:, 1]
+        data = pd.read_csv(train_file, header=None)
+        features = data.columns[1:]
+        labels = data.columns[0:1]
         return data, features, labels
 
     def aggregate_on_all_pairs(

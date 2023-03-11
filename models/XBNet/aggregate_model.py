@@ -1,7 +1,7 @@
 import torch
 from models.XBNet.base_model import Model
 from data.dataset import Dataset
-from aggregate_utils import length_to_range
+from data.aggregate_utils import length_to_range
 from typing import Callable
 from itertools import chain
 import numpy as np
@@ -70,7 +70,6 @@ class AggregateModel(Model):
                             y_batch_est, choices[choice], axis=0)
                 y_batch_est = torch.tensor(y_batch_est)
 
-        l = None
         inp = x_batch
         out = y_batch
         try:
