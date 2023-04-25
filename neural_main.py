@@ -8,7 +8,7 @@ from data.synthetic import generate_data
 from data.data_utils import generate_values, observation_subset_for, split_data
 import torch
 from torch import optim
-from tqdm import trange
+from tqdm import trange, tqdm
 from plot_utils import plot_xy, plot_losses, plot_auc, plot_precision, plot_recall, plot_confusion_matrix
 
 RANDOM_SEED = 2022
@@ -17,13 +17,13 @@ np.random.seed(RANDOM_SEED)
 torch.manual_seed(RANDOM_SEED)
 
 # global variables
-NUM_OBSERVATIONS = 50
+
 BATCH_SIZE = 32
-NUM_ITERS = 5000
+NUM_ITERS = 1000
 VALIDATION_SPLIT = 0.2
 TEST_SPLIT = 0.1
 VALIDATE_EVERY_K_ITERATIONS = 5
-USE_TABULAR_DATA = False
+USE_TABULAR_DATA = True
 LEARNING_RATE = 0.001
 LOSS = torch.nn.functional.mse_loss
 USE_WEIGHT = True
@@ -36,6 +36,8 @@ CLASSIFICATION = USE_TABULAR_DATA
 
 # synthetic-data-only variables
 NUM_ENTRIES = 1000
+GROUP_SIZE = 5
+NUM_OBSERVATIONS = math.ceil(NUM_ENTRIES/GROUP_SIZE)
 NUM_DIMENSIONS = 1
 ADD_NOISE = False
 
@@ -47,9 +49,13 @@ obs_y = None
 meta = None
 valFunc = None
 
+def aggregate_sum(z: torch.tensor):
+        return z.sum(axis=0)
+
+
 if USE_TABULAR_DATA:
     data_x, data_y, obs_y, meta = retrieve_data(
-        num_observations=NUM_OBSERVATIONS)
+        group_size=GROUP_SIZE)
     expected_y = data_y
 else:
     def val_func_1(x: list[float]) -> np.ndarray:
@@ -71,7 +77,7 @@ else:
                                                 num_observations=NUM_OBSERVATIONS,
                                                 do_add_noise=ADD_NOISE,
                                                 value_func=val_func,
-                                                aggregate=aggregate_mean)
+                                                aggregate=aggregate_sum)
     expected_y = generate_values(
         data_x=data_x, value_func=val_func)
 
@@ -85,7 +91,7 @@ data_validate = Dataset(
     data_x=data_x, data_y=expected_y, obs_y=obs_y, observations=meta_validate)
 
 loss_history = []
-aggregate_model = AggregateModel(classification=CLASSIFICATION, aggregate_by=aggregate_mean)
+aggregate_model = AggregateModel(classification=CLASSIFICATION, aggregate_by=aggregate_sum)
 aggregate_model.get_model_for(data_train)
 standard_model = StandardModel(classification=CLASSIFICATION)
 standard_model.get_model_for(data_train)
@@ -94,13 +100,14 @@ aggregate_prediction_history = []
 standard_prediction_history = []
 
 AGGREGATE_BATCH = math.ceil(BATCH_SIZE / (NUM_ENTRIES * (1 - VALIDATION_SPLIT - TEST_SPLIT)) / NUM_OBSERVATIONS)
-
-for iterIndex in trange(NUM_ITERS):
+pbar = trange(NUM_ITERS)
+for iterIndex in pbar:
     aggregate_loss = aggregate_model.train(dataset=data_train,
                                            optimizer=optim.Adam(
                                                aggregate_model.parameters(), lr=LEARNING_RATE),
                                            loss=LOSS,
                                            batch_size=BATCH_SIZE)
+    pbar.set_description(desc=f"aggregate_loss = {aggregate_loss}")
     standard_loss = standard_model.train(dataset=data_train,
                                          optimizer=optim.Adam(
                                              standard_model.parameters(), lr=LEARNING_RATE),
