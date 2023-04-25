@@ -4,7 +4,7 @@ import numpy as np
 import os
 import pandas as pd
 import category_encoders as ce
-
+import math
 filepath = os.getcwd() + "/datasets/breast-cancer-1/breast-cancer.data"
 
 
@@ -81,23 +81,24 @@ def get_raw_data() -> list[torch.tensor, torch.tensor]:
     return [data_x, data_y]
 
 
-def retrieve_data(num_observations: int) -> list[torch.tensor, torch.tensor, torch.tensor, list[Observation]]:
+def retrieve_data(group_size: int) -> list[torch.tensor, torch.tensor, torch.tensor, list[Observation]]:
     data_x, data_y = get_raw_data()
     data_x = encode_x(data_x)
     data_y = encode_y(data_y)
-    obs_y, meta = generate_observations(data_y, num_observations)
+    obs_y, meta = generate_observations(data_y, group_size)
     return [data_x, data_y, obs_y, meta]
 
 
-def generate_observations(data_y: torch.tensor, num_observations: int) -> list[torch.tensor, list[Observation]]:
+def generate_observations(data_y: torch.tensor, group_size: int) -> list[torch.tensor, list[Observation]]:
     # returned data_y is a tensor shaped (entries, values)
     entry_no = len(data_y)
     meta = np.linspace(0, entry_no, entry_no, endpoint=False, dtype=int)
     np.random.shuffle(meta)
+    num_observations = math.ceil(entry_no/group_size)
     meta = np.array_split(meta, num_observations)
     meta = [Observation(y, i) for i, y in enumerate(meta)]
     obs_y = torch.stack([torch.index_select(
-        data_y, 0, torch.tensor(obs.entries_indices)).mean(axis=0) for obs in meta]).float()
+        data_y, 0, torch.tensor(obs.entries_indices)).sum(axis=0) for obs in meta]).float()
     return [obs_y, meta]
 
 
