@@ -160,6 +160,7 @@ gen_data_z = preprocess_labels(gen_data_z)
 if len(gen_data_z[0]) == 1:
     gen_obs_y = torch.tensor(np.array(list(map(lambda x: [1 - x[0], x[0]], gen_obs_y)), dtype=np.float64))
     gen_data_z = torch.tensor(np.array(list(map(lambda x: [1 - x[0], x[0]], gen_data_z)), dtype=np.float64))
+    test_data_z = torch.tensor(np.array(list(map(lambda x: [1 - x[0], x[0]], test_data_z)), dtype=np.float64))
     # std_gen_data_z = torch.tensor(np.array(list(map(lambda x: [1 - x[0], x[0]], std_gen_data_z)), dtype=np.float64))
 if len(data_z[0]) == 1:
     data_z = torch.tensor(np.array(list(map(lambda x: [1 - x[0], x[0]], data_z)), dtype=np.float64))
@@ -193,8 +194,6 @@ np.random.shuffle(test_meta)
 test_meta = np.array_split(test_meta, NUM_OBSERVATIONS)
 test_meta = [Observation(x, i) for i, x in enumerate(test_meta)]
 
-validate_meta, test_meta = train_test_split(test_meta, test_size=1-VALIDATION_SPLIT, random_state=RANDOM_SEED)
-data_validate = Dataset(data_x=test_data_x, data_y=test_data_z, observations=validate_meta)
 data_test = Dataset(data_x=test_data_x, data_y=test_data_z, observations=test_meta)
 
 aggregate_prediction_history = {}
@@ -223,11 +222,11 @@ if LOAD_MODEL is not None:
     standard_model.load(MODEL_TYPE, LOAD_MODEL, STANDARD_MODEL_KEY)
 else:
     print(f"=============== TRAIN AGGREGATE =================")
-    aggregate_model.train(dataset=data_train, validate=data_validate, test=data_test)
+    aggregate_model.train(dataset=data_train, test=data_test)
     print(f"=============== TRAIN STANDARD =================")
-    standard_model.train(dataset=std_data_train, validate=data_validate, test=data_test)
+    standard_model.train(dataset=std_data_train, test=data_test)
     print(f"=============== TRAIN STANDARD GEN =================")
-    standard_gen_model.train(dataset=std_gen_data_train, validate=data_validate, test=data_test)
+    standard_gen_model.train(dataset=std_gen_data_train, test=data_test)
     aggregate_model.save(MODEL_TYPE, AGGREGATE_MODEL_KEY)
     standard_model.save(MODEL_TYPE, STANDARD_MODEL_KEY)
     standard_gen_model.save(MODEL_TYPE, STANDARD_GEN_MODEL_KEY)
@@ -235,9 +234,9 @@ else:
 loss_history = []
 for i in range(NUM_ITERS):
     loss_history.append({
-        'proposed method': aggregate_model.history['validation']['binary_logloss'][min(i, len(aggregate_model.history['validation']['binary_logloss']) - 1)],
-        'standard method': standard_model.history['validation']['binary_logloss'][min(i, len(standard_model.history['validation']['binary_logloss']) - 1)],
-        'standard method on gen data': standard_gen_model.history['validation']['binary_logloss'][min(i, len(standard_gen_model.history['validation']['binary_logloss']) - 1)],
+        'proposed method': aggregate_model.history['test']['binary_logloss'][min(i, len(aggregate_model.history['test']['binary_logloss']) - 1)],
+        'standard method': standard_model.history['test']['binary_logloss'][min(i, len(standard_model.history['test']['binary_logloss']) - 1)],
+        'standard method on gen data': standard_gen_model.history['test']['binary_logloss'][min(i, len(standard_gen_model.history['test']['binary_logloss']) - 1)],
     })
 
 data_x_a, aggregate_predictions = aggregate_model.test(
@@ -247,18 +246,22 @@ data_x_v_std, standard_predictions = standard_model.test(
 data_x_v_std_gen, standard_gen_predictions = standard_gen_model.test(
     dataset=data_test)
 
+aggregate_predictions_binary = [1 if x >= 0.5 else 0 for x in aggregate_predictions]
+standard_predictions_binary = [1 if x >= 0.5 else 0 for x in standard_predictions]
+standard_gen_predictions_binary = [1 if x >= 0.5 else 0 for x in standard_gen_predictions]
+
 prediction_data = [
     {
         "label": 'Proposed method',
-        "auc_history": aggregate_model.history['validation']['auc']
+        "auc_history": aggregate_model.history['test']['auc']
     },
     {
         "label": 'Standard method',
-        "auc_history": standard_model.history['validation']['auc']
+        "auc_history": standard_model.history['test']['auc']
     },
     {
         "label": 'Standard method on gen. data',
-        "auc_history": standard_gen_model.history['validation']['auc']
+        "auc_history": standard_gen_model.history['test']['auc']
     },
 ]
 plot_auc(models=prediction_data)
@@ -267,15 +270,15 @@ targets = observation_subset_for(data=test_data_z, dataset=data_test)
 prediction_data = [
     {
         "label": 'Proposed method',
-        "prediction_history": [torch.Tensor([[e, 1 - e] for e in aggregate_predictions])],
+        "prediction_history": [torch.Tensor([[1-e, e] for e in aggregate_predictions_binary])],
     },
     {
         "label": 'Standard method',
-        "prediction_history": [torch.Tensor([[e, 1 - e] for e in standard_predictions])],
+        "prediction_history": [torch.Tensor([[1-e, e] for e in standard_predictions_binary])],
     },
     {
         "label": 'Standard method on gen. data',
-        "prediction_history": [torch.Tensor([[e, 1 - e] for e in standard_gen_predictions])],
+        "prediction_history": [torch.Tensor([[1-e, e] for e in standard_gen_predictions_binary])],
     },
 ]
 plot_confusion_matrix(prediction_data, targets)

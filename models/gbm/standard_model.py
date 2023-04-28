@@ -8,10 +8,15 @@ from sklearn import metrics
 
 
 class StandardModel(Model):
-    def train(self, dataset: Dataset, validate: Dataset, test: Dataset) -> None:
+    def train(self, dataset: Dataset, test: Dataset) -> None:
         lgb_train = self.to_lgb_dataset(dataset)
-        lgb_validate = self.to_lgb_dataset(validate)
         lgb_test = self.to_lgb_dataset(test)
+
+        def accuracy(predictions: np.ndarray, eval_data: lgb.Dataset) -> (str, float, bool):
+            input = torch.tensor([1 if x >= 0.5 else 0 for x in predictions], dtype=torch.float64)
+            target = torch.tensor(eval_data.get_label(), dtype=torch.float64)
+            return 'accuracy', metrics.accuracy_score(target, input), True
+
         def binary_logloss(predictions: np.ndarray, eval_data: lgb.Dataset) -> (str, float, bool):
             # predictions shaped [n_samples, n_classes]
             loss = torch.nn.BCELoss()
@@ -28,9 +33,9 @@ class StandardModel(Model):
         self.gbm = lgb.train(
             params=self.lgb_params,
             train_set=lgb_train,
-            valid_sets=[lgb_validate, lgb_test],
-            valid_names=['validation', 'test'],
-            feval=[binary_logloss, auc],
+            valid_sets=[lgb_test],
+            valid_names=['test'],
+            feval=[binary_logloss, auc, accuracy],
             num_boost_round=self.train_params["num_boost_round"],
             callbacks=[lgb.record_evaluation(self.history)],
             # callbacks=[lgb.early_stopping(
