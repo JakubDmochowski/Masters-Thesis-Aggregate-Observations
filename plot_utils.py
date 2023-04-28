@@ -20,8 +20,8 @@ def plot_losses(loss_history: list[list[float]]):
     for model in models:
         history = [losses[model].detach().numpy() for losses in loss_history]
         ax.plot(x, history, label=model)
-    ax.set_xlabel('epoka')
-    ax.set_ylabel('strata')
+    ax.set_xlabel('epoch')
+    ax.set_ylabel('loss')
     ax.legend()
     plt.yscale("log")
     fig.show()
@@ -94,16 +94,29 @@ def plot_roc(targets, predictions, title):
     fig.show()
 
 
-def plot_auc(models, targets, every):
+def plot_auc_direct(models):
     fig, ax = plt.subplots(figsize=PLOTSIZE)
     for model in models:
-        auc_history = []
-        for index, predictions in enumerate(model["prediction_history"]):
-            auc_history.append([index * every, metrics.roc_auc_score(
-                targets.reshape(-1), predictions.reshape(-1))])
-        auc_history = np.array(auc_history)
-        ax.plot(auc_history[:, 0], auc_history[:, 1], label=model["label"])
-    ax.set_xlabel('epoka')
+        ax.plot(range(len(model.auc_history)), model.auc_history, label=model["label"])
+    ax.set_xlabel('epoch')
+    ax.set_ylabel('AUC')
+    ax.legend()
+    fig.show()
+
+
+def plot_auc(models, targets=None, every=None):
+    fig, ax = plt.subplots(figsize=PLOTSIZE)
+    for model in models:
+        if 'prediction_history' in model:
+            auc_history = []
+            for index, predictions in enumerate(model["prediction_history"]):
+                auc_history.append([index * every, metrics.roc_auc_score(
+                    targets.reshape(-1), predictions.reshape(-1))])
+            auc_history = np.array(auc_history)
+            ax.plot(auc_history[:, 0], auc_history[:, 1], label=model["label"])
+        elif 'auc_history' in model:
+            ax.plot(range(len(model['auc_history'])), model['auc_history'], label=model["label"])
+    ax.set_xlabel('epoch')
     ax.set_ylabel('AUC')
     ax.legend()
     fig.show()

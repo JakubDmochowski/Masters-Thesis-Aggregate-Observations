@@ -22,6 +22,9 @@ def encode_data(contents):
     return data_x, data_y
 
 
+def get_data_count():
+    return 80
+
 def get_training_data():
     return encode_data(pd.read_csv(train_file, header=None))
 

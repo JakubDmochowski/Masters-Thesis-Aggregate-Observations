@@ -10,7 +10,8 @@ import re
 
 
 class Model:
-    def __init__(self, params: dict = {}, train_params: dict = {}):
+    def __init__(self, params: dict = {}, train_params: dict = {}, history: dict = {}):
+        self.history = history
         self.gbm = None
         default_lgb_params = {
             "objective": "binary",
