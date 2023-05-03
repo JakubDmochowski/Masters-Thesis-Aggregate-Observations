@@ -121,9 +121,11 @@ class DataGenerator:
             init_prob = self.data_graph.nodes()[initial_node]["clicks"] / self.data_graph.nodes()[initial_node]["count"]
 
             entry_path, probs = self.get_entry_path(initial_node)
-        expected_z = init_prob
+        expected_z = 1 - init_prob
         for cl_prob, ct_prob in probs:
-            expected_z = expected_z * cl_prob / ct_prob
+            expected_z = expected_z * (1 - (cl_prob / ct_prob))
+
+        expected_z = 1 - expected_z
         expected_z = np.array([expected_z])
         data_x = self.get_entry_data(entry_path)
         return data_x, expected_z
