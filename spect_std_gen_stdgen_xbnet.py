@@ -147,7 +147,7 @@ for iteration in range(5):
                 vals = torch.pow(z, torch.tensor(k))
                 return abs(np.count_nonzero(vals > 0.5) - (len(z) / 2))  # 40/40 class split distribution in spect dataset
 
-            optimal = optimize.brute(fitness, ranges=[slice(0.01, 2, 0.01)], full_output=True)
+            optimal = optimize.brute(fitness, ranges=[slice(1000, 1000000, 100)], full_output=True)
             # search for such "k", for which the proportion of "0" to "1" labels is possibly close to initial data
             k = optimal[0][0]
             return torch.pow(z, torch.tensor(k))

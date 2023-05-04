@@ -23,7 +23,7 @@ import pandas as pd
 from matplotlib import pyplot as plt
 import seaborn as sns
 
-RESULT_FILENAME = os.getcwd() + '/research_results/spect_gbm_results_2.csv'
+RESULT_FILENAME = os.getcwd() + '/research_results/spect_gbm_results.csv'
 if os.path.exists(RESULT_FILENAME):
     print("Result file name already exists")
     exit(1)
@@ -156,7 +156,7 @@ for iteration in range(5):
                 vals = torch.pow(z, torch.tensor(k))
                 return abs(np.count_nonzero(vals > 0.5) - (len(z) / 2))  # 40/40 class split distribution in spect dataset
 
-            optimal = optimize.brute(fitness, ranges=[slice(0.01, 2, 0.01)], full_output=True)
+            optimal = optimize.brute(fitness, ranges=[slice(1, 1000000, 5)], full_output=True)
             # search for such "k", for which the proportion of "0" to "1" labels is possibly close to initial data
             k = optimal[0][0]
             return torch.round(torch.pow(z, torch.tensor(k)))
