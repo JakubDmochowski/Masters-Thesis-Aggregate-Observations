@@ -49,6 +49,7 @@ for iteration in range(5):
         "num_boost_round": NUM_ITERS,
         "early_stopping_rounds": 20
     }
+    K_SEARCH_RANGE = [slice(1, 1000000, 5)]
 
     WEIGHTS = torch.tensor(get_weights(), dtype=torch.float)
 
@@ -127,7 +128,7 @@ for iteration in range(5):
             return aggregate_pow(z, k)
 
 
-        gen_obs_y, gen_meta, k = generate_independent_observations(gen_data_z, NUM_GEN_OBSERVATIONS, NUM_GENERATED_USED, aggregate)
+        gen_obs_y, gen_meta, k = generate_independent_observations(gen_data_z, NUM_GEN_OBSERVATIONS, NUM_GENERATED_USED, aggregate, k_search_range=K_SEARCH_RANGE)
         obs_y, meta, _ = generate_independent_observations(data_z, NUM_OBSERVATIONS, NUM_GENERATED_USED, aggregate, k=k)
 
 
@@ -156,7 +157,7 @@ for iteration in range(5):
                 vals = torch.pow(z, torch.tensor(k))
                 return abs(np.count_nonzero(vals > 0.5) - (len(z) / 2))  # 40/40 class split distribution in spect dataset
 
-            optimal = optimize.brute(fitness, ranges=[slice(1, 1000000, 5)], full_output=True)
+            optimal = optimize.brute(fitness, ranges=K_SEARCH_RANGE, full_output=True)
             # search for such "k", for which the proportion of "0" to "1" labels is possibly close to initial data
             k = optimal[0][0]
             return torch.round(torch.pow(z, torch.tensor(k)))

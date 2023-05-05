@@ -41,6 +41,7 @@ for iteration in range(5):
     NUM_ITERS = 2000
     VALIDATE_EVERY_K_ITERATIONS = 5
     LEARNING_RATE = 0.001
+    K_SEARCH_RANGE=[slice(1000, 1000000, 100)]
 
     WEIGHTS = torch.tensor(get_weights(), dtype=torch.float)
 
@@ -118,7 +119,7 @@ for iteration in range(5):
             return aggregate_pow(z, k)
 
 
-        gen_obs_y, gen_meta, k = generate_independent_observations(gen_data_z, NUM_GEN_OBSERVATIONS, NUM_GENERATED_USED, aggregate)
+        gen_obs_y, gen_meta, k = generate_independent_observations(gen_data_z, NUM_GEN_OBSERVATIONS, NUM_GENERATED_USED, aggregate, k_search_range=K_SEARCH_RANGE)
         obs_y, meta, _ = generate_independent_observations(data_z, NUM_OBSERVATIONS, NUM_GENERATED_USED, aggregate, k=k)
 
 
@@ -147,7 +148,7 @@ for iteration in range(5):
                 vals = torch.pow(z, torch.tensor(k))
                 return abs(np.count_nonzero(vals > 0.5) - (len(z) / 2))  # 40/40 class split distribution in spect dataset
 
-            optimal = optimize.brute(fitness, ranges=[slice(1000, 1000000, 100)], full_output=True)
+            optimal = optimize.brute(fitness, ranges=K_SEARCH_RANGE, full_output=True)
             # search for such "k", for which the proportion of "0" to "1" labels is possibly close to initial data
             k = optimal[0][0]
             return torch.pow(z, torch.tensor(k))
@@ -241,10 +242,10 @@ for iteration in range(5):
 
         with open(RESULT_FILENAME, "a", newline='') as f:
             csvwriter = csv.writer(f, dialect='excel')
-            csvwriter.writerow([f"{iteration}", f"{NUM_GENERATED_USED}", "aggregate", f"{metrics.accuracy_score(targets, np.argmax(aggregate_predictions, axis=1))}", f"{metrics.roc_auc_score(targets, np.argmax(aggregate_predictions, axis=1))}"])
-            csvwriter.writerow([f"{iteration}", f"{NUM_GENERATED_USED}", "standard", f"{metrics.accuracy_score(targets, np.argmax(standard_predictions, axis=1))}", f"{metrics.roc_auc_score(targets, np.argmax(standard_predictions, axis=1))}"])
-            csvwriter.writerow([f"{iteration}", f"{NUM_GENERATED_USED}", "standard on gen", f"{metrics.accuracy_score(targets, np.argmax(standard_gen_predictions, axis=1))}", f"{metrics.roc_auc_score(targets, np.argmax(standard_gen_predictions, axis=1))}"])
-        #
+            csvwriter.writerow([f"{iteration}", f"{NUM_GENERATED_USED}", "aggregate", f"{metrics.accuracy_score(targets, np.argmax(aggregate_predictions, axis=1))}", f"{metrics.roc_auc_score(targets, aggregate_predictions[:, 1])}"])
+            csvwriter.writerow([f"{iteration}", f"{NUM_GENERATED_USED}", "standard", f"{metrics.accuracy_score(targets, np.argmax(standard_predictions, axis=1))}", f"{metrics.roc_auc_score(targets, standard_predictions[:, 1])}"])
+            csvwriter.writerow([f"{iteration}", f"{NUM_GENERATED_USED}", "standard on gen", f"{metrics.accuracy_score(targets, np.argmax(standard_gen_predictions, axis=1))}", f"{metrics.roc_auc_score(targets, standard_gen_predictions[:, 1])}"])
+
         # plot_losses(loss_history)
         # targets = observation_subset_for(data=test_data_z, dataset=data_test)
         # prediction_data = [

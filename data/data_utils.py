@@ -1,6 +1,6 @@
 import torch
 from data.dataset import Dataset, Observation
-from typing import Callable
+from typing import Callable, Union, Iterable, Tuple
 import numpy as np
 from itertools import chain
 from sklearn.model_selection import train_test_split
@@ -46,9 +46,9 @@ def observation_values(data_z, obs_y: torch.tensor, observations):
 
 
 def generate_independent_observations(data_z: torch.tensor, num_observations: int, num_generated: int,
-                                      aggregate: Callable, k=None) -> list[torch.tensor, list[Observation]]:
+                                      aggregate: Callable, k: float = None, k_search_range: Union[Iterable, Tuple] = None) -> list[torch.tensor, list[Observation]]:
     if num_observations >= num_generated / 2:
-        raise("Too big number of observations. Each observation must consist of minimum 2 points.")
+        raise "Too big number of observations. Each observation must consist of minimum 2 points."
     # returned data_z is a tensor shaped (entries, values)
     entry_no = len(data_z)
     meta = np.linspace(0, entry_no, entry_no, endpoint=False, dtype=int)
@@ -56,13 +56,15 @@ def generate_independent_observations(data_z: torch.tensor, num_observations: in
     meta = np.array_split(meta, num_observations)
     meta = [Observation(x, i) for i, x in enumerate(meta)]
     if k is None:
+        if k_search_range is None:
+            raise "Exponent k search range not provided."
         print("Optimizing T function params for better classification")
         def fitness(k):
             obs_y = get_observations(data_z, meta, aggregate, k)
             vals = observation_values(data_z, obs_y, meta)
             return abs(np.count_nonzero(vals > 0.5) - (num_generated / 2))
 
-        optimal = optimize.brute(fitness, ranges=[slice(1000, 1000000, 100)], full_output=True)
+        optimal = optimize.brute(fitness, ranges=k_search_range, full_output=True)
         # search for such "k", for which the proportion of "0" to "1" labels is possibly close to initial data
         k = optimal[0][0]
     obs_y = get_observations(data_z, meta, aggregate, k)
