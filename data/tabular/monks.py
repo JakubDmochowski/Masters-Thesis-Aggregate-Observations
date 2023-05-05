@@ -24,7 +24,7 @@ def encode_data(contents):
 
 
 def get_data_count():
-    return 80
+    return len(pd.read_csv(train_file, delim_whitespace=True, header=None))
 
 def get_training_data():
     return encode_data(pd.read_csv(train_file, delim_whitespace=True, header=None))
